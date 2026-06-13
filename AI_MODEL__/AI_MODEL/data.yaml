@@ -1,0 +1,6 @@
+path: D:/TVS_1/AI_MODEL/hens  # folder root
+train: train/images              # train images (relative to path)
+val: train/images                # for now, use the same for validation
+
+names:
+  0: hen

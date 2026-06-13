@@ -1,0 +1,100 @@
+# Python & Caches
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+**/*.egg-info/
+*.egg
+.pytest_cache/
+**/.pytest_cache/
+.venv/
+venv/
+env/
+**/venv/
+**/.venv/
+**/env/
+
+# Node & Package Managers
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+build/
+**/build/
+frontend/dist/
+.vite/
+**/.vite/
+
+# Local Environment & Configurations
+.env
+.env.local
+.env.*.local
+*.env
+.env.development
+.env.test
+.env.production
+
+# Docker & Containers
+.docker/
+**/.docker/
+
+# IDE & Editor files
+.vscode/
+.idea/
+**/.vscode/
+**/.idea/
+*.swp
+*.swo
+*~
+*.suo
+*.sln
+*.user
+
+# OS Metadata
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Logs
+*.log
+**/*.log
+*.db
+*.sqlite
+
+# Model weights (too large for git)
+*.pt
+*.pth
+*.onnx
+*.engine
+*.pt.xml
+*.pt.map
+*_savedmodel/
+
+# Training data & datasets (too large)
+**/dataset/
+**/hens/
+**/runs/
+**/train/
+**/val/
+**/test/
+**/images/
+**/labels/
+
+# Jupyter notebooks (can be large)
+*.ipynb
+
+# Large media
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.gif
+
+# SavedModel / TensorFlow
+**/saved_model.pb
+**/variables/

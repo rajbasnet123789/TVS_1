@@ -1,0 +1,4 @@
+ipykernel
+datasets
+pillow
+ultralytics
