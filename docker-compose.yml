@@ -69,10 +69,18 @@ services:
       REFRESH_TOKEN_EXPIRE_DAYS: 7
       CORS_ORIGINS: http://localhost:3000
       LOG_LEVEL: DEBUG
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
     ports: ["8000:8000"]
     volumes:
-      - ./AI_MODEL:/app/AI_MODEL
       - ./backend/app:/app/app
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_started}

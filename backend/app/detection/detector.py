@@ -12,7 +12,10 @@ class YOLODetector:
     def __init__(self, model_name: str = "yolov8x.pt"):
         _root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
         candidates = [
+            os.environ.get("YOLO_MODEL", ""),
+            os.path.join(_root, "AI_MODEL__", "AI_MODEL", model_name),
             os.path.join(_root, "AI_MODEL", model_name),
+            f"/app/{model_name}",
             f"/app/AI_MODEL/{model_name}",
             model_name,
             "yolov8x.pt",
