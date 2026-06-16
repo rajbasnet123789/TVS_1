@@ -1,0 +1,147 @@
+============================================================
+PERFORMANCE SUMMARY
+============================================================
+
+Duration: 41.0 seconds
+Sampling Interval: 0.3 seconds
+Total Samples: 110
+Wall Clock Time: 41.2 seconds
+Process Exit Code: 0
+
+------------------------------------------------------------
+GPU STATISTICS
+------------------------------------------------------------
+Device: NVIDIA GeForce RTX 3050 Laptop GPU (4 GB)
+
+GPU Utilization (%)
+  Min : 10.0
+  Max : 93.0
+  Avg : 31.55
+  Peak: 93.0
+
+GPU Memory Utilization (%)
+  Min : 7.28
+  Max : 40.04
+  Avg : 16.47
+  Peak: 40.04
+
+GPU Memory Used (MB)
+  Min : 298
+  Max : 1640
+  Avg : 674.76
+  Peak: 1640
+
+GPU Temperature (°C)
+  Min : 49
+  Max : 66
+  Avg : 51.94
+  Peak: 66
+
+CUDA Allocated Memory (MB)
+  Min : 0
+  Max : 0
+  Avg : 0
+  Peak: 0
+
+CUDA Reserved Memory (MB)
+  Min : 0
+  Max : 0
+  Avg : 0
+  Peak: 0
+
+------------------------------------------------------------
+CPU STATISTICS
+------------------------------------------------------------
+CPU Utilization (%)
+  Min : 0.0
+  Max : 80.4
+  Avg : 50.81
+  Peak: 80.4
+
+------------------------------------------------------------
+RAM STATISTICS
+------------------------------------------------------------
+RAM Utilization (%)
+  Min : 87.4
+  Max : 95.2
+  Avg : 92.24
+  Peak: 95.2
+
+RAM Used (GB)
+  Min : 13.73
+  Max : 14.95
+  Avg : 14.49
+  Peak: 14.95
+
+============================================================
+MULTI-CAMERA HEN TRACKING RESULTS
+============================================================
+
+Total Unique Hens (Across All Cameras): 22
+Total Detections: 59
+Cross-Camera Matches: 6
+
+Camera-wise Summary
+------------------------------------------------------------
+CH_01
+  Hens Detected : 7
+  Unique IDs    : 3
+  Avg Weight    : 2.339 kg
+
+CH_02
+  Hens Detected : 18
+  Unique IDs    : 10
+  Avg Weight    : 2.363 kg
+
+CH_03
+  Hens Detected : 12
+  Unique IDs    : 9
+  Avg Weight    : 2.361 kg
+
+CH_04
+  Hens Detected : 20
+  Unique IDs    : 4
+  Avg Weight    : 2.342 kg
+
+CH_06
+  Hens Detected : 2
+  Unique IDs    : 2
+  Avg Weight    : 2.386 kg
+
+------------------------------------------------------------
+Cross-Camera Identity Mapping
+------------------------------------------------------------
+G1
+  Cameras   : CH_02, CH_03, CH_01, CH_04
+  Confidence: 0.27
+
+G7
+  Cameras   : CH_02, CH_04
+  Confidence: 0.17
+
+G11
+  Cameras   : CH_02, CH_03
+  Confidence: 0.14
+
+G12
+  Cameras   : CH_02, CH_04
+  Confidence: 0.10
+
+============================================================
+OUTPUT FILES
+============================================================
+
+Annotated Images:
+- D:\TVS_1\TVS_1\AI_MODEL__\AI_MODEL\mcmt_frames\CH_01_annotated.jpg
+- D:\TVS_1\TVS_1\AI_MODEL__\AI_MODEL\mcmt_frames\CH_02_annotated.jpg
+- D:\TVS_1\TVS_1\AI_MODEL__\AI_MODEL\mcmt_frames\CH_03_annotated.jpg
+- D:\TVS_1\TVS_1\AI_MODEL__\AI_MODEL\mcmt_frames\CH_04_annotated.jpg
+- D:\TVS_1\TVS_1\AI_MODEL__\AI_MODEL\mcmt_frames\CH_06_annotated.jpg
+
+Grid View:
+- D:\TVS_1\TVS_1\AI_MODEL__\AI_MODEL\mcmt_frames\ALL_CAMERAS_grid.jpg
+
+Final Unique Hen Count: 22
+
+Status: SUCCESS
+============================================================

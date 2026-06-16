@@ -1,0 +1,100 @@
+{
+  "duration_seconds": 41.0,
+  "sampling_interval_sec": 0.3,
+  "total_samples": 110,
+  "gpu": {
+    "device": "NVIDIA GeForce RTX 3050 Laptop GPU (4 GB)",
+    "gpu_utilization_pct": {
+      "min": 10.0,
+      "max": 93.0,
+      "avg": 31.554545454545455,
+      "peak": 93.0
+    },
+    "gpu_memory_utilization_pct": {
+      "min": 7.275390625,
+      "max": 40.0390625,
+      "avg": 16.47372159090909,
+      "peak": 40.0390625
+    },
+    "gpu_memory_used_mb": {
+      "min": 298.0,
+      "max": 1640.0,
+      "avg": 674.7636363636364,
+      "peak": 1640.0
+    },
+    "gpu_temperature_c": {
+      "min": 49.0,
+      "max": 66.0,
+      "avg": 51.93636363636364,
+      "peak": 66.0
+    },
+    "cuda_allocated_mb": {
+      "min": 0.0,
+      "max": 0.0,
+      "avg": 0.0,
+      "peak": 0.0
+    },
+    "cuda_reserved_mb": {
+      "min": 0.0,
+      "max": 0.0,
+      "avg": 0.0,
+      "peak": 0.0
+    }
+  },
+  "cpu": {
+    "cpu_utilization_pct": {
+      "min": 0.0,
+      "max": 80.4,
+      "avg": 50.81272727272727,
+      "peak": 80.4
+    }
+  },
+  "ram": {
+    "ram_utilization_pct": {
+      "min": 87.4,
+      "max": 95.2,
+      "avg": 92.24363636363636,
+      "peak": 95.2
+    },
+    "ram_used_gb": {
+      "min": 13.731670379638672,
+      "max": 14.953132629394531,
+      "avg": 14.492521320689809,
+      "peak": 14.953132629394531
+    }
+  },
+  "wall_clock_seconds": 41.2,
+  "process_exit_code": 0,
+  "stdout_log": [
+    "============================================================",
+    "Total unique hens (across all cameras): 22",
+    "Total detections:                       59",
+    "Cross-camera matches (same hen seen):   6",
+    "",
+    "CH_01: 7 hens, 3 unique IDs, weight avg=2.339kg",
+    "CH_02: 18 hens, 10 unique IDs, weight avg=2.363kg",
+    "CH_03: 12 hens, 9 unique IDs, weight avg=2.361kg",
+    "CH_04: 20 hens, 4 unique IDs, weight avg=2.342kg",
+    "CH_06: 2 hens, 2 unique IDs, weight avg=2.386kg",
+    "",
+    "Camera ID cross-reference:",
+    "G  1: seen in CH_02, CH_03, CH_01, CH_04 (conf=0.27)",
+    "G  7: seen in CH_02, CH_04 (conf=0.17)",
+    "G 11: seen in CH_02, CH_03 (conf=0.14)",
+    "G 12: seen in CH_02, CH_04 (conf=0.10)",
+    "",
+    "============================================================",
+    "",
+    "Saving annotated images to D:\\TVS_1\\TVS_1\\AI_MODEL__\\AI_MODEL\\mcmt_frames...",
+    "Saved D:\\TVS_1\\TVS_1\\AI_MODEL__\\AI_MODEL\\mcmt_frames\\CH_01_annotated.jpg",
+    "Saved D:\\TVS_1\\TVS_1\\AI_MODEL__\\AI_MODEL\\mcmt_frames\\CH_02_annotated.jpg",
+    "Saved D:\\TVS_1\\TVS_1\\AI_MODEL__\\AI_MODEL\\mcmt_frames\\CH_03_annotated.jpg",
+    "Saved D:\\TVS_1\\TVS_1\\AI_MODEL__\\AI_MODEL\\mcmt_frames\\CH_04_annotated.jpg",
+    "Saved D:\\TVS_1\\TVS_1\\AI_MODEL__\\AI_MODEL\\mcmt_frames\\CH_06_annotated.jpg",
+    "",
+    "Done! Final unique hen count: 22",
+    "",
+    "Saved grid view: D:\\TVS_1\\TVS_1\\AI_MODEL__\\AI_MODEL\\mcmt_frames\\ALL_CAMERAS_grid.jpg",
+    "Showing GUI for 5 seconds..."
+  ]
+}

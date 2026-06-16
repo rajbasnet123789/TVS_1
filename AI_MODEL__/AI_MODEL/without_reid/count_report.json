@@ -1,0 +1,35 @@
+{
+  "config": "YOLO image detection",
+  "elapsed_s": 5.99,
+  "total_images": 5,
+  "per_camera": {
+    "CH_01": {
+      "count": 2,
+      "total_dets": 2,
+      "images": 1
+    },
+    "CH_02": {
+      "count": 15,
+      "total_dets": 15,
+      "images": 1
+    },
+    "CH_03": {
+      "count": 46,
+      "total_dets": 46,
+      "images": 1
+    },
+    "CH_04": {
+      "count": 65,
+      "total_dets": 65,
+      "images": 1
+    },
+    "CH_06": {
+      "count": 20,
+      "total_dets": 20,
+      "images": 1
+    }
+  },
+  "raw_total": 148,
+  "overlap_duplicates": 0,
+  "final_count": 148
+}

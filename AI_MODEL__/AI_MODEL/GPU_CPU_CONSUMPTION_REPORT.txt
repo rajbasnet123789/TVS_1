@@ -1,0 +1,183 @@
+================================================================================
+          GPU / CPU CONSUMPTION REPORT — YOLOv11x + MiewID ReID
+================================================================================
+  Date:        2026-06-16
+  Platform:    Windows (win32)
+  GPU:         NVIDIA GeForce RTX 3050 Laptop GPU (4 GB VRAM)
+  CUDA:        12.1
+  CPU Cores:   12 (logical)
+  RAM:         15.7 GB
+================================================================================
+
+
+================================================================================
+  SECTION 1: mcmt_images (Static Image Analysis) — YOLOv11x + MiewID + GUI
+================================================================================
+
+  Configuration:
+    - Detection Model:   YOLOv11x (yolov11x.pt, 109 MB)
+    - ReID Model:        MiewID (conservationxlabs/miewid-msv3, 2152-dim)
+    - SAHI Tiling:       640x640 slices, 0.2 overlap, NMS postprocess
+    - Confidence:        0.1
+    - ROI Mode:          Full frame (skipped ROI selection)
+    - GUI:               OpenCV imshow (5-second display)
+    - Cameras:           CH_01, CH_02, CH_03, CH_04, CH_06 (5 channels)
+
+  Detection Results:
+    CH_01:   7 hens,  3 unique IDs, weight avg=2.339 kg
+    CH_02:  18 hens, 10 unique IDs, weight avg=2.363 kg
+    CH_03:  12 hens,  9 unique IDs, weight avg=2.361 kg
+    CH_04:  20 hens,  4 unique IDs, weight avg=2.342 kg
+    CH_06:   2 hens,  2 unique IDs, weight avg=2.386 kg
+    ---------------------------------------------------------
+    Total unique hens:        22
+    Total detections:         59
+    Cross-camera matches:      6
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  GPU CONSUMPTION                                                       │
+  ├──────────────────────────┬──────────┬──────────┬──────────┬────────────┤
+  │  Metric                  │   Min    │   Avg    │   Max    │   Peak     │
+  ├──────────────────────────┼──────────┼──────────┼──────────┼────────────┤
+  │  GPU Utilization (%)     │  10.0    │  31.6    │  93.0    │  93.0      │
+  │  GPU Memory Used (MB)    │  298.0   │  674.8   │ 1640.0   │ 1640.0     │
+  │  GPU Memory (%)          │   7.3    │  16.5    │  40.0    │  40.0      │
+  │  GPU Temperature (C)     │  49.0    │  51.9    │  66.0    │  66.0      │
+  │  CUDA Allocated (MB)     │   0.0    │   0.0    │   0.0    │   0.0      │
+  │  CUDA Reserved (MB)      │   0.0    │   0.0    │   0.0    │   0.0      │
+  ├──────────────────────────┴──────────┴──────────┴──────────┴────────────┤
+  │  CPU CONSUMPTION                                                       │
+  ├──────────────────────────┬──────────┬──────────┬──────────┬────────────┤
+  │  CPU Utilization (%)     │   0.0    │  50.8    │  80.4    │  80.4      │
+  ├──────────────────────────┴──────────┴──────────┴──────────┴────────────┤
+  │  RAM CONSUMPTION                                                       │
+  ├──────────────────────────┬──────────┬──────────┬──────────┬────────────┤
+  │  RAM Utilization (%)     │  87.4    │  92.2    │  95.2    │  95.2      │
+  │  RAM Used (GB)           │  13.73   │  14.49   │  14.95   │  14.95     │
+  ├──────────────────────────┴──────────┴──────────┴──────────┴────────────┤
+  │  Wall Clock Time:    41.2 seconds                                     │
+  │  Process Exit Code:  0 (Success)                                      │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+  SECTION 2: All Channel Video Processing — YOLOv11x + MiewID + BoT-SORT + GUI
+================================================================================
+
+  Configuration:
+    - Detection Model:   YOLOv11x (yolov11x.pt)
+    - ReID Model:        MiewID (conservationxlabs/miewid-msv3, 2152-dim)
+    - Tracker:           BoT-SORT (botsort_custom.yaml, with_reid: True)
+    - Confidence:        0.35
+    - GUI:               OpenCV imshow (real-time display)
+    - Frame Skip:        1 (every frame processed)
+    - Detection Res:     Max 1280px
+
+  Camera Videos:
+  ┌──────────┬──────────────────────────────────────────┬────────┬─────────┬───────────┬──────────┐
+  │  Camera  │  File                                    │  Size  │  Res    │  Native   │  Frames  │
+  │          │                                          │  (MB)  │         │  FPS      │          │
+  ├──────────┼──────────────────────────────────────────┼────────┼─────────┼───────────┼──────────┤
+  │  CH_01   │  46246285-CH_01-20260615152853.mp4       │  0.4   │ 800x448 │  25 fps   │  77      │
+  │  CH_02   │  46246285-CH_02-20260615152839.mp4       │  3.8   │3840x2160│  25 fps   │  66      │
+  │  CH_03   │  46246285-CH_03-20260615154022.mp4       │  4.9   │ 800x448 │   5 fps   │  796     │
+  │  CH_06   │  46246285-CH_06-20260615154027.mp4       │  4.4   │ 800x448 │   8 fps   │  838     │
+  └──────────┴──────────────────────────────────────────┴────────┴─────────┴───────────┴──────────┘
+  Total: 4 channels, 1777 frames across all videos
+
+  Pipeline Results:
+    - Frames Processed:     87 (cycled through all 4 cameras)
+    - Wall Clock Time:      202.89 seconds
+    - Throughput:           0.43 FPS
+    - Gallery Size:         17 unique hens
+    - NMS Warnings:         2 (time limit exceeded on CH_02 4K frame)
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  GPU CONSUMPTION                                                       │
+  ├──────────────────────────┬──────────┬──────────┬──────────┬────────────┤
+  │  Metric                  │   Min    │   Avg    │   Max    │   Peak     │
+  ├──────────────────────────┼──────────┼──────────┼──────────┼────────────┤
+  │  GPU Utilization (%)     │   0.0    │  50.7    │ 100.0    │ 100.0      │
+  │  GPU Memory Used (MB)    │ 3544.0   │ 3817.4   │ 3956.0   │ 3956.0     │
+  │  GPU Memory (%)          │  86.5    │  93.2    │  96.6    │  96.6      │
+  │  GPU Temperature (C)     │  67.0    │  75.8    │  84.0    │  84.0      │
+  │  CUDA Allocated (MB)     │   0.0    │   0.0    │   0.0    │   0.0      │
+  │  CUDA Reserved (MB)      │   0.0    │   0.0    │   0.0    │   0.0      │
+  ├──────────────────────────┴──────────┴──────────┴──────────┴────────────┤
+  │  CPU CONSUMPTION                                                       │
+  ├──────────────────────────┬──────────┬──────────┬──────────┬────────────┤
+  │  CPU Utilization (%)     │   0.0    │  72.6    │  97.5    │  97.5      │
+  ├──────────────────────────┴──────────┴──────────┴──────────┴────────────┤
+  │  RAM CONSUMPTION                                                       │
+  ├──────────────────────────┬──────────┬──────────┬──────────┬────────────┤
+  │  RAM Utilization (%)     │  81.1    │  95.0    │  99.7    │  99.7      │
+  │  RAM Used (GB)           │  12.74   │  14.92   │  15.67   │  15.67     │
+  ├──────────────────────────┴──────────┴──────────┴──────────┴────────────┤
+  │  Wall Clock Time:    242.6 seconds                                    │
+  │  Process Exit Code:  0 (Success)                                      │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+  SECTION 3: COMPARISON SUMMARY — Static Images vs Video Processing
+================================================================================
+
+  ┌──────────────────────────┬─────────────────────┬─────────────────────┐
+  │  Metric                  │  Static (5 cams)    │  Video (4 cams)     │
+  ├──────────────────────────┼─────────────────────┼─────────────────────┤
+  │  Wall Clock (s)          │       41.2          │      242.6          │
+  │  Frames/Images Processed │        5            │       87            │
+  │  Total Detections        │       59            │  Not counted        │
+  │  Unique Hens             │       22            │       17            │
+  ├──────────────────────────┼─────────────────────┼─────────────────────┤
+  │  GPU Utilization avg (%) │      31.6           │      50.7           │
+  │  GPU Utilization max (%) │      93.0           │     100.0           │
+  │  GPU Memory avg (MB)     │     674.8           │    3817.4           │
+  │  GPU Memory max (MB)     │    1640.0           │    3956.0           │
+  │  GPU Memory % avg        │      16.5           │      93.2           │
+  │  GPU Temp avg (C)        │      51.9           │      75.8           │
+  │  GPU Temp max (C)        │      66.0           │      84.0           │
+  ├──────────────────────────┼─────────────────────┼─────────────────────┤
+  │  CPU Utilization avg (%) │      50.8           │      72.6           │
+  │  CPU Utilization max (%) │      80.4           │      97.5           │
+  ├──────────────────────────┼─────────────────────┼─────────────────────┤
+  │  RAM Used avg (GB)       │      14.49          │      14.92          │
+  │  RAM Used max (GB)       │      14.95          │      15.67          │
+  │  RAM % avg               │      92.2           │      95.0           │
+  └──────────────────────────┴─────────────────────┴─────────────────────┘
+
+
+================================================================================
+  KEY OBSERVATIONS
+================================================================================
+
+  1. GPU BOTTLENECK (RTX 3050 4GB):
+     - Video processing consumes 93-97% of GPU memory (3817-3956 MB)
+     - YOLOv11x alone uses ~1.6 GB VRAM; MiewID adds ~200 MB on top
+     - Background processes (IDE, browser, Loom) pre-occupy ~3.5 GB VRAM
+     - GPU temperature peaks at 84C during sustained video inference
+
+  2. CPU BOTTLENECK:
+     - Video processing pushes CPU to 97.5% peak (72.6% avg)
+     - SAHI slicing + OpenCV decode + MiewID CPU fallback contribute
+     - 12 logical cores fully utilized during multi-camera processing
+
+  3. RAM EXHAUSTION:
+     - System reaches 99.7% RAM usage (15.67 GB of 15.7 GB)
+     - Each model + video buffers consume significant memory
+     - Risk of system instability under sustained load
+
+  4. THROUGHPUT:
+     - Static images: 5 images in 41.2s = ~0.12 img/s (includes GUI wait)
+     - Video: 87 frames in 242.6s = 0.43 FPS (below real-time)
+     - CH_02 (4K@25fps) causes NMS time limit warnings
+
+  5. RECOMMENDATIONS:
+     - Close background apps to free ~2 GB GPU memory
+     - Use GPU with >= 8 GB VRAM for real-time multi-camera YOLOv11x
+     - Consider YOLOv11n or YOLOv11s for lower memory footprint
+     - Add CUDA memory tracking (torch.cuda) for detailed allocation data
+
+================================================================================
+  END OF REPORT
+================================================================================

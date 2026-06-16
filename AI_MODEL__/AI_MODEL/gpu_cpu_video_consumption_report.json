@@ -1,0 +1,99 @@
+{
+  "duration_seconds": 242.3,
+  "sampling_interval_sec": 0.3,
+  "total_samples": 388,
+  "gpu": {
+    "device": "NVIDIA GeForce RTX 3050 Laptop GPU (4 GB)",
+    "gpu_utilization_pct": {
+      "min": 0.0,
+      "max": 100.0,
+      "avg": 50.69,
+      "peak": 100.0
+    },
+    "gpu_memory_utilization_pct": {
+      "min": 86.52,
+      "max": 96.58,
+      "avg": 93.2,
+      "peak": 96.58
+    },
+    "gpu_memory_used_mb": {
+      "min": 3544.0,
+      "max": 3956.0,
+      "avg": 3817.43,
+      "peak": 3956.0
+    },
+    "gpu_temperature_c": {
+      "min": 67.0,
+      "max": 84.0,
+      "avg": 75.84,
+      "peak": 84.0
+    },
+    "cuda_allocated_mb": {
+      "min": 0.0,
+      "max": 0.0,
+      "avg": 0.0,
+      "peak": 0.0
+    },
+    "cuda_reserved_mb": {
+      "min": 0.0,
+      "max": 0.0,
+      "avg": 0.0,
+      "peak": 0.0
+    }
+  },
+  "cpu": {
+    "cpu_utilization_pct": {
+      "min": 0.0,
+      "max": 97.5,
+      "avg": 72.62,
+      "peak": 97.5
+    }
+  },
+  "ram": {
+    "ram_utilization_pct": {
+      "min": 81.1,
+      "max": 99.7,
+      "avg": 94.99,
+      "peak": 99.7
+    },
+    "ram_used_gb": {
+      "min": 12.74,
+      "max": 15.67,
+      "avg": 14.92,
+      "peak": 15.67
+    }
+  },
+  "wall_clock_seconds": 242.6,
+  "process_exit_code": 0,
+  "stdout_log": [
+    "============================================================",
+    "MCMT VIDEO - YOLOv11x + MiewID ReID",
+    "Cameras: 4",
+    "============================================================",
+    "[YOLO] YOLOv11x loaded on cuda",
+    "[ReID] MiewID loaded on cuda:0 (dim=2152)",
+    "[Cam] CH_01: 77 frames @ 25fps",
+    "[Cam] CH_02: 66 frames @ 25fps",
+    "[Cam] CH_03: 796 frames @ 5fps",
+    "[Cam] CH_06: 838 frames @ 8fps",
+    "WARNING NMS time limit 2.050s exceeded",
+    "WARNING NMS time limit 2.050s exceeded",
+    "",
+    "============================================================",
+    "FINAL RESULTS - YOLOv11x + MiewID VIDEO",
+    "============================================================",
+    "Total frames processed:  87",
+    "Wall clock time:         202.89s",
+    "Throughput:              0.43 FPS",
+    "Gallery size:            17 unique hens",
+    "",
+    "",
+    "============================================================"
+  ],
+  "videos_processed": {
+    "CH_01": "D:\\TVS_1\\TVS_1\\AI_MODEL__\\AI_MODEL\\CH_01\\46246285-CH_01-20260615152853.mp4",
+    "CH_02": "D:\\TVS_1\\TVS_1\\AI_MODEL__\\AI_MODEL\\CH_02\\46246285-CH_02-20260615152839.mp4",
+    "CH_03": "D:\\TVS_1\\TVS_1\\AI_MODEL__\\AI_MODEL\\CH_03\\46246285-CH_03-20260615154022.mp4",
+    "CH_06": "D:\\TVS_1\\TVS_1\\AI_MODEL__\\AI_MODEL\\CH_06\\46246285-CH_06-20260615154027.mp4"
+  }
+}

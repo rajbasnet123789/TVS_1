@@ -1,10 +1,8 @@
 """
-HenCounter: Orchestrates YOLOv8 detection + BoT-SORT (OSNet ReID) + zone-based counting.
+HenCounter: Wraps ZoneBasedCounter with detection tracking and trajectory storage.
 
-BoT-SORT maintains frame-to-frame track IDs using both motion (Kalman filter)
-and appearance embeddings (OSNet), providing robust identity tracking even when
-hens occlude each other. This module adds zone counting and global ID persistence
-via spatial-temporal proximity as a secondary fallback.
+Provides the interface expected by main.py while using ZoneBasedCounter's
+line-crossing counting underneath.
 """
 
 import time
@@ -12,7 +10,7 @@ import numpy as np
 from dataclasses import dataclass, field
 from typing import Optional
 
-from reid import ZoneBasedCounter
+from transformers.zone_counter import ZoneBasedCounter
 
 
 @dataclass
@@ -30,10 +28,13 @@ class TrackedHen:
 
 class HenCounter:
     def __init__(self, frame_width: int = 640, frame_height: int = 480):
+        self.frame_width = frame_width
+        self.frame_height = frame_height
         self.counter = ZoneBasedCounter(frame_width, frame_height)
-        self.counter.add_default_zones()
+        self.counter.add_default_lines()
         self._active_hens: dict[int, TrackedHen] = {}
         self._all_hens: dict[int, TrackedHen] = {}
+        self._trajectories: dict[int, list[tuple[float, float]]] = {}
         self._frame_count = 0
 
     def process_frame(
@@ -41,55 +42,89 @@ class HenCounter:
         detections: list[dict],
         track_ids: list[Optional[int]],
     ) -> dict:
-        result = self.counter.process_frame(detections, track_ids)
+        # Convert bbox dict {"x","y","w","h"} to tuple (x1,y1,x2,y2) for ZoneBasedCounter
+        counter_dets = []
+        for det in detections:
+            b = det["bbox"]
+            counter_dets.append({
+                "bbox": (b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"]),
+                "confidence": det["confidence"],
+                "class_id": det.get("class_id", 0),
+                "class_name": det.get("class_name", ""),
+            })
+        self.counter.process_frame(counter_dets, track_ids)
 
         self._active_hens.clear()
-        for det in result["detections"]:
-            gid = det["global_id"]
+        for det, tid in zip(detections, track_ids):
+            if tid is None:
+                continue
+
+            cx = det["bbox"]["x"] + det["bbox"]["w"] / 2
+            cy = det["bbox"]["y"] + det["bbox"]["h"] / 2
+            centroid = (cx, cy)
+
+            gid = det.get("global_id", tid)
             hen = TrackedHen(
                 global_id=gid,
-                track_id=det["track_id"],
-                centroid=(
-                    det["bbox"]["x"] + det["bbox"]["w"] / 2,
-                    det["bbox"]["y"] + det["bbox"]["h"] / 2,
-                ),
+                track_id=tid,
+                centroid=centroid,
                 bbox=det["bbox"],
                 confidence=det["confidence"],
-                zone=det.get("zone", ""),
+                zone="",
             )
             if gid in self._all_hens:
                 hen.first_seen = self._all_hens[gid].first_seen
                 hen.frames_visible = self._all_hens[gid].frames_visible + 1
-            self._active_hens[det["track_id"]] = hen
+            self._active_hens[tid] = hen
             self._all_hens[gid] = hen
+
+            if tid not in self._trajectories:
+                self._trajectories[tid] = []
+            self._trajectories[tid].append(centroid)
+            if len(self._trajectories[tid]) > 60:
+                self._trajectories[tid].pop(0)
 
         self._frame_count += 1
 
+        zone_counts = {
+            "net_count": self.counter.get_net_count(),
+        }
+
         return {
-            "detections": result["detections"],
-            "current_count": result["current_count"],
-            "unique_count": result["unique_count"],
-            "total_seen": result["total_seen"],
-            "zone_counts": result["zone_counts"],
+            "detections": [
+                {
+                    "bbox": hen.bbox,
+                    "confidence": hen.confidence,
+                    "global_id": hen.global_id,
+                    "track_id": hen.track_id,
+                    "zone": hen.zone,
+                }
+                for hen in self._active_hens.values()
+            ],
+            "current_count": len(self._active_hens),
+            "unique_count": len(self._all_hens),
+            "total_seen": len(self._all_hens),
+            "zone_counts": zone_counts,
         }
 
     def get_unique_count(self) -> int:
-        return self.counter.get_unique_count()
+        return len(self._all_hens)
 
     def get_current_visible(self) -> int:
-        return self.counter.get_current_visible()
+        return len(self._active_hens)
 
     def get_total_seen(self) -> int:
-        return self.counter.get_total_seen()
+        return len(self._all_hens)
 
     def get_zone_counts(self) -> dict[str, int]:
-        return self.counter.get_zone_counts()
+        return {"net_count": self.counter.get_net_count()}
 
     def get_trajectories(self) -> dict[int, list[tuple[float, float]]]:
-        return self.counter.get_trajectories()
+        return self._trajectories
 
     def reset(self):
         self.counter.reset()
         self._active_hens.clear()
         self._all_hens.clear()
+        self._trajectories.clear()
         self._frame_count = 0
