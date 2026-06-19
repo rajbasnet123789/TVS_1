@@ -480,4 +480,124 @@ main.py
                     ├── detector.py
                     ├── embedder.py
                     └── gallery.py
+
+streamlit_app.py  (Streamlit Intruder Detection UI)
+├── detector.py    (PersonDetector)
+├── embedder.py    (FaceEmbedder)
+└── gallery.py     (FaceGallery)
 ```
+
+---
+
+## Streamlit Web App (Intruder Detection)
+
+### What it does
+- **Upload images** of known people at startup (no webcam needed for enrollment)
+- **Connects to IP camera** at `http://192.168.1.30:8080/video` (MJPEG stream)
+- **Real-time face detection** + embedding matching against enrolled DB
+- **Intruder alerts**: If a face doesn't match DB -> red "INTRUDER WARNING" banner
+- **All clear**: If all faces match -> green "NO INTRUDER - ALL CLEAR" banner
+- **Intruder logging**: Saves snapshots + event logs to `logs/` folder
+
+### How to run
+```bash
+pip install streamlit insightface onnxruntime
+streamlit run streamlit_app.py
+```
+
+Opens at: `http://localhost:8501`
+
+### Streamlit UI Layout
+
+**Sidebar (Left):**
+| Section | Description |
+|---------|-------------|
+| Enroll Known Persons | Enter name + upload face images (multiple for better accuracy) |
+| Enrolled Persons | List of all enrolled people with metadata, remove button |
+| Match Threshold | Slider to adjust cosine similarity threshold (0.1 - 1.0) |
+| Logs | Intruder event count + recent log viewer |
+
+**Main Area:**
+| Element | Description |
+|---------|-------------|
+| IP Camera Feed | Configurable camera IP + port input |
+| Run Recognition | Checkbox to start/stop the live feed |
+| Video Frame | Real-time annotated frame with detection overlays |
+| Alert Banner | Green (safe) or Red (intruder) status |
+| Status Bar | Detected persons count, known names, intruder count |
+
+### Detection Logic
+
+```
+For each frame from IP camera:
+  1. YOLOv8-seg detects all persons
+  2. ArcFace-R100 extracts 512-dim face embedding per person
+  3. FAISS gallery searches for best cosine similarity match
+  4. If match_score >= threshold:
+       -> GREEN label: "Name (score)" -> NO INTRUDER
+     Else:
+       -> RED label: "INTRUDER" -> INTRUDER WARNING
+```
+
+### Color Coding
+
+| Color | Meaning |
+|-------|---------|
+| Green overlay + green banner | Known person, all clear |
+| Yellow overlay | Borderline match (near threshold) |
+| Red overlay + red banner | Intruder detected |
+
+### Intrustuder Logging
+
+Logs saved to `logs/` folder:
+- `intruder_log.json` - JSON array of all detection events
+- `intruder_YYYYMMDD_HHMMSS.jpg` - Snapshot frames when intruder detected
+
+Log entry format:
+```json
+{
+  "timestamp": "20260619_120000",
+  "name": "INTRUDER",
+  "score": 0.32,
+  "is_known": false
+}
+```
+
+### Camera Configuration
+
+Default URL: `http://192.168.1.30:8080/video`
+
+If your camera uses a different URL pattern, update `get_stream_url()`:
+```python
+# Common IP camera URL patterns:
+# http://192.168.1.30:8080/video          (MJPEG stream)
+# http://192.168.1.30:8080/?action=stream  (MJPG-streamer)
+# rtsp://192.168.1.30:554/stream1          (RTSP)
+```
+
+### Embedding Robustness (Same as CLI)
+
+| Technique | Benefit |
+|-----------|---------|
+| ArcFace-R100 (512-dim) | State-of-the-art face recognition backbone |
+| L2 normalization | Cosine similarity via dot product, invariant to scale |
+| Multi-image enrollment | Average embeddings across multiple photos for accuracy |
+| EMA updates | Refine stored embeddings when person is re-identified |
+| Face quality filtering | Skip low-confidence detections (occluded, blurry) |
+| Background removal | YOLOv8-seg masks remove clutter before embedding |
+| Fallback face region | Try upper 40% of bbox if face detector fails |
+
+### Threshold Tuning Guide
+
+| Threshold | Use Case |
+|-----------|----------|
+| 0.35 | Loose - catches more people, higher false positive rate |
+| 0.45 | Default - balanced for most environments |
+| 0.55 | Strict - fewer false alarms, may miss some known faces |
+| 0.65 | Very strict - only near-identical faces match |
+
+**Tips:**
+- Well-lit environment + front-facing enrollment photos -> use higher threshold
+- Poor lighting + varied angles -> use lower threshold
+- Too many false alarms -> increase threshold
+- Missing known people -> decrease threshold
