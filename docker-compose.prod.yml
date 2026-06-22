@@ -1,0 +1,93 @@
+# Production override — locks down dev-exposed ports, adds Swarm deploy config, and
+# sets production-appropriate defaults. Use with: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+services:
+  postgres:
+    ports: []  # Remove host port — internal only
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+
+  influxdb:
+    ports: []
+    environment:
+      DOCKER_INFLUXDB_INIT_PASSWORD_FILE: /run/secrets/influx_password
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN_FILE: /run/secrets/influx_token
+    secrets: [influx_password, influx_token]
+
+  redis:
+    ports: []
+
+  mosquitto:
+    ports:
+      - "1883:1883"  # Keep if external clients connect; remove if internal-only
+
+  frigate:
+    ports:
+      - "8971:8971"  # Frigate web UI (admin/VPN only)
+    environment:
+      FRIGATE_RTSP_PASSWORD_FILE: /run/secrets/frigate_rtsp_password
+      MQTT_USERNAME_FILE: /run/secrets/mqtt_username
+      MQTT_PASSWORD_FILE: /run/secrets/mqtt_password
+    secrets: [frigate_rtsp_password, mqtt_username, mqtt_password]
+
+  backend:
+    ports: []
+    environment:
+      CORS_ORIGINS: https://${DOMAIN}
+      COOKIES_SECURE: "true"
+      LOG_LEVEL: WARNING
+      DATABASE_URL: postgresql+asyncpg://poultry@postgres:5432/poultry
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      INFLUX_TOKEN_FILE: /run/secrets/influx_token
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+      ENCRYPTION_KEY_FILE: /run/secrets/encryption_key
+      ENCRYPTION_SALT_FILE: /run/secrets/encryption_salt
+      DEFAULT_ADMIN_PASSWORD_FILE: /run/secrets/default_admin_password
+    secrets: [postgres_password, influx_token, jwt_secret, encryption_key, encryption_salt, default_admin_password]
+    deploy:
+      mode: replicated
+      replicas: 2
+
+  caddy:
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+
+  frontend:
+    ports: []
+    environment:
+      VITE_API_URL: https://${DOMAIN}
+      VITE_FRIGATE_GO2RTC_URL: https://${DOMAIN}
+    deploy:
+      mode: replicated
+      replicas: 2
+
+  backup:
+    environment:
+      PGPASSWORD_FILE: /run/secrets/postgres_password
+      INFLUX_TOKEN_FILE: /run/secrets/influx_token
+    secrets: [postgres_password, influx_token]
+
+secrets:
+  postgres_password:
+    external: true
+  influx_password:
+    external: true
+  influx_token:
+    external: true
+  frigate_rtsp_password:
+    external: true
+  mqtt_username:
+    external: true
+  mqtt_password:
+    external: true
+  jwt_secret:
+    external: true
+  encryption_key:
+    external: true
+  encryption_salt:
+    external: true
+  default_admin_password:
+    external: true

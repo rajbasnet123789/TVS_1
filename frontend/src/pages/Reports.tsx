@@ -7,6 +7,7 @@ import {
 import DownloadIcon from '@mui/icons-material/Download'
 import api from '../api/axios'
 import type { Camera } from '../types'
+import { useAuth } from '../auth/AuthContext'
 
 interface CamStats {
   id: string
@@ -19,12 +20,14 @@ interface CamStats {
 }
 
 export default function Reports() {
+  const { currentFarm } = useAuth()
   const [cameras, setCameras] = useState<Camera[]>([])
   const [stats, setStats] = useState<CamStats[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchReports = async () => {
+      setLoading(true)
       try {
         const camRes = await api.get('/cameras')
         const camerasData: Camera[] = camRes.data
@@ -52,7 +55,7 @@ export default function Reports() {
       setLoading(false)
     }
     fetchReports()
-  }, [])
+  }, [currentFarm])
 
   const exportCSV = () => {
     const headers = ['Camera','Total Detections','Unique Chickens','Peak Headcount','Avg Confidence','Detections/hr']

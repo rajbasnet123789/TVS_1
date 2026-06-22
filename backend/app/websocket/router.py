@@ -8,6 +8,7 @@ router = APIRouter()
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, token: str | None = None):
+    token = token or websocket.cookies.get("access_token")
     if not token:
         await websocket.close(code=4001)
         return
@@ -17,12 +18,24 @@ async def websocket_endpoint(websocket: WebSocket, token: str | None = None):
         await websocket.close(code=4001)
         return
 
-    await manager.connect(websocket, channel="global")
-    channels = ["global", "detections", "alerts", "camera_status"]
-    for ch in channels:
-        if ch not in manager._connections:
-            manager._connections[ch] = set()
-        manager._connections[ch].add(websocket)
+    role_name = payload.get("role", "viewer")
+    if role_name == "super_admin":
+        farm_id = websocket.query_params.get("farm_id") or payload.get("farm_id", None)
+    else:
+        farm_id = payload.get("farm_id", None)
+
+    if farm_id:
+        channels = [
+            f"farm_{farm_id}/detections",
+            f"farm_{farm_id}/alerts",
+            f"farm_{farm_id}/camera_status",
+        ]
+        await manager.connect(websocket, channel=f"farm_{farm_id}")
+    else:
+        channels = ["detections", "alerts", "camera_status", "health"]
+        await manager.connect(websocket, channel="global")
+
+    await manager.connect_channels(websocket, channels)
 
     try:
         while True:
@@ -32,5 +45,4 @@ async def websocket_endpoint(websocket: WebSocket, token: str | None = None):
     except Exception:
         pass
     finally:
-        for ch in channels:
-            manager.disconnect(websocket, ch)
+        manager.disconnect_all(websocket)

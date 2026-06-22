@@ -1,0 +1,62 @@
+# Version control
+.git
+.gitattributes
+.gitignore
+
+# Python cache (backend context)
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.venv
+venv
+env
+
+# Node (frontend context)
+node_modules
+frontend/node_modules
+.next
+frontend/.next
+frontend/build
+
+# IDE / editor
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Environment secrets
+.env
+.env.local
+.env.*.local
+
+# Documentation
+*.md
+docs
+
+# Docker files
+Dockerfile
+Dockerfile.*
+docker-compose*
+.dockerignore
+
+# Build artifacts
+dist
+build
+*.egg-info
+
+# Logs
+*.log
+logs
+
+# OS package backups
+*.bak

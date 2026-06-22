@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Box, Typography, Card, CardContent, CircularProgress, Grid, Chip, Alert } from '@mui/material'
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart,
 } from 'recharts'
 import PeopleIcon from '@mui/icons-material/People'
 import RadarIcon from '@mui/icons-material/Radar'
@@ -10,8 +10,10 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import api from '../api/axios'
 import { StatCard } from '../components/StatCard'
 import type { Camera } from '../types'
+import { useAuth } from '../auth/AuthContext'
 
 function useCombinedAnalytics() {
+  const { currentFarm } = useAuth()
   const [cameras, setCameras] = useState<Camera[]>([])
   const [allHistory, setAllHistory] = useState<any>(null)
   const [allSummary, setAllSummary] = useState<any>(null)
@@ -40,9 +42,8 @@ function useCombinedAnalytics() {
       const camerasData: Camera[] = camRes.data
       setCameras(camerasData)
 
-      const [histRes, summaryRes] = await Promise.all([
+      const [histRes] = await Promise.all([
         api.get('/detection/global/history', { params }),
-        api.get('/detection/global/history', { params: { start: params.start, end: params.end, window: params.window } }).catch(() => null),
       ])
       setAllHistory(histRes.data)
 
@@ -88,7 +89,7 @@ function useCombinedAnalytics() {
     }
   }
 
-  useEffect(() => { fetch(range) }, [range])
+  useEffect(() => { fetch(range) }, [range, currentFarm])
 
   return { cameras, allHistory, allSummary, perCameraSummaries, loading, error, range, setRange, refresh: () => fetch(range) }
 }

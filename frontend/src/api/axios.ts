@@ -1,16 +1,21 @@
 import axios from 'axios'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
 const api = axios.create({
   baseURL: `${API_BASE}/v1`,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 })
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+  const farmId = localStorage.getItem('selected_farm_id')
+  if (farmId) {
+    config.headers['X-Farm-ID'] = farmId
+  }
+  const impToken = localStorage.getItem('impersonation_token')
+  if (impToken) {
+    config.headers.Authorization = `Bearer ${impToken}`
   }
   return config
 })
@@ -19,21 +24,21 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config
-    if (error.response?.status === 401 && !original._retry) {
+    const isAuthRoute = original.url?.includes('/auth/login') || original.url?.includes('/auth/refresh')
+    if (error.response?.status === 401 && !original._retry && !isAuthRoute) {
       original._retry = true
-      const refreshToken = localStorage.getItem('refresh_token')
-      if (refreshToken) {
-        try {
-          const { data } = await axios.post(`${API_BASE}/v1/auth/refresh`, {
-            refresh_token: refreshToken,
-          })
-          localStorage.setItem('access_token', data.access_token)
-          localStorage.setItem('refresh_token', data.refresh_token)
-          original.headers.Authorization = `Bearer ${data.access_token}`
-          return api(original)
-        } catch {
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('refresh_token')
+      try {
+        localStorage.removeItem('impersonation_token')
+        localStorage.removeItem('impersonation_info')
+        const { data } = await axios.post(`${API_BASE}/v1/auth/refresh`, {}, { withCredentials: true })
+        if (data.impersonation_token) {
+          localStorage.setItem('impersonation_token', data.impersonation_token)
+        }
+        const tokenToUse = localStorage.getItem('impersonation_token') || data.access_token
+        original.headers.Authorization = `Bearer ${tokenToUse}`
+        return api(original)
+      } catch {
+        if (window.location.pathname !== '/login') {
           window.location.href = '/login'
         }
       }

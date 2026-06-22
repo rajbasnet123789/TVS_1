@@ -1,8 +1,20 @@
+export interface Farm {
+  id: string
+  name: string
+  location: string | null
+  slug: string
+  settings: Record<string, unknown>
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface User {
   id: string
   email: string
   full_name: string | null
   role: Role
+  farm_id: string | null
   is_active: boolean
   last_login: string | null
   created_at: string
@@ -19,7 +31,6 @@ export interface Camera {
   id: string
   name: string
   rtsp_url: string
-  onvif_address: string | null
   location: string | null
   zone: string | null
   status: string
@@ -27,43 +38,13 @@ export interface Camera {
   resolution_width: number
   resolution_height: number
   enabled: boolean
-  discovered_via_onvif: boolean
   hls_url: string | null
   username: string | null
   password: string | null
+  coop_id: string | null
+  snapshot_url: string | null
+  roi: number[][] | null
   created_at: string
-}
-
-export interface Chicken {
-  id: string
-  chicken_id: number
-  name: string | null
-  breed: string | null
-  status: string
-  notes: string | null
-  created_at: string
-  updated_at: string
-}
-
-export interface ONVIFChannel {
-  channel: number
-  profile_token: string
-  rtsp_url: string | null
-  name: string | null
-  encoding: string | null
-  resolution_width: number | null
-  resolution_height: number | null
-}
-
-export interface ONVIFDevice {
-  ip: string
-  manufacturer: string | null
-  model: string | null
-  brand: string | null
-  rtsp_url: string | null
-  onvif_address: string | null
-  device_service_url: string | null
-  channels: ONVIFChannel[]
 }
 
 export interface TokenResponse {
@@ -84,33 +65,41 @@ export interface WebSocketMessage {
   [key: string]: unknown
 }
 
-export interface TimeSeriesPoint {
-  time: string
-  value: number
+export interface DiscoveredDevice {
+  name: string
+  device_url: string
+  ip: string
+  xaddrs: string
+  types: string
+  scopes: string
 }
 
-export interface DetectionHistory {
-  camera_id: string
-  window: string
-  detection_series: TimeSeriesPoint[]
-  headcount_series: TimeSeriesPoint[]
+export interface ScanStatus {
+  scanning: boolean
+  progress: number | null
+  devices_found: number
+  error: string | null
 }
 
-export interface DetectionSummary {
-  total_detections: number
-  unique_chickens: number
-  peak_head_count: number
-  avg_confidence: number
-  active_minutes: number
-  detections_per_hour: number
+export interface CostBreakdown {
+  chick_purchase_cost: number
+  feed_cost: number
+  labour_cost: number
+  other_costs: number
+  total_costs: number
 }
 
-export interface DetectedChicken {
-  track_id: number
-  detections: number
-  avg_confidence: number
-  last_seen: string
-  first_seen: string
-  cameras: string[]
-  status: string
+export interface ProfitLossResult {
+  input_chickens: number
+  projected_headcount: number
+  estimated_mortality_rate: number
+  price_per_chicken: number
+  duration_days: number
+  revenue: number
+  costs: CostBreakdown
+  net_profit: number
+  profit_margin_percent: number
+  is_profitable: boolean
+  avg_health_score: number | null
+  current_headcount: number | null
 }

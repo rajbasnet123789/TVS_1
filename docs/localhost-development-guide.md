@@ -11,28 +11,25 @@
 ## Quick Start
 
 ```bash
-# 1. Clone and enter the project
-cd A:\TVS_1
-
-# 2. Start all services
+# 1. Start all services
 docker compose up -d
 
-# 3. Access the application
+# 2. Access the application
 #    Frontend: http://localhost:3000
 #    Backend API: http://localhost:8000
 #    API Docs: http://localhost:8000/docs
-#    MediaMTX HLS: http://localhost:8888
+#    Frigate UI: http://localhost:8971
 
-# 4. Login with default credentials:
+# 3. Login with default credentials:
 #    Email: admin@poultry.farm
-#    Password: admin123
+#    Password: (set in DEFAULT_ADMIN_PASSWORD env var)
 ```
 
 ## Default Credentials
 
 | Role | Email | Password |
 |------|-------|----------|
-| Super Admin | admin@poultry.farm | admin123 |
+| Super Admin | `admin@poultry.farm` | Check the value of the `DEFAULT_ADMIN_PASSWORD` variable in your `.env` file |
 
 *Additional roles are created automatically. Register new users via the API at `/auth/register`.*
 
@@ -46,9 +43,11 @@ docker compose up -d
 | Redis | 6379 | Cache + pub/sub + queue |
 | InfluxDB | 8086 | Time-series metrics |
 | MinIO | 9000 / 9001 | Object storage / Console |
-| MediaMTX HLS | 8888 | HLS video streams |
-| MediaMTX RTSP | 8554 | RTSP relay |
-| MediaMTX API | 9997 | Stream management |
+| Frigate API | 5000 | Frigate internal API |
+| Frigate go2rtc | 1984 | HLS/WebRTC video streams |
+| Frigate UI | 8971 | Frigate management UI |
+| Mosquitto | 1883 | MQTT broker |
+| Frigate RTSP | 8554 | RTSP relay (internal) |
 
 ## Development Without Docker
 
@@ -59,7 +58,8 @@ python -m venv .venv
 .venv\Scripts\activate  # Windows
 pip install -e ".[dev]"
 
-# Ensure postgres, redis, influxdb, minio are running (docker compose up -d postgres redis influxdb minio)
+# Ensure postgres, redis, influxdb, minio, mosquitto, frigate are running
+# (docker compose up -d postgres redis influxdb minio mosquitto frigate)
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -74,13 +74,10 @@ npm run dev
 
 1. Navigate to **Cameras** in the sidebar
 2. Click **"Add Camera"** and enter the RTSP URL
-3. Or click **"Scan Network"** to auto-discover ONVIF cameras
+3. The backend auto-registers the camera in Frigate via its API — Frigate handles motion detection, bird detection, and HLS streaming
 4. The camera will appear in the Dashboard and Live Feed
 
-### Using a Mock Camera
-If no real cameras are available, the backend can generate synthetic frames. Set a camera's RTSP URL to `mock://camera1` to use the mock generator.
-
-## API Endpoints
+## Key API Endpoints
 
 | Method | Path | Auth | Permission |
 |--------|------|------|------------|
@@ -88,21 +85,17 @@ If no real cameras are available, the backend can generate synthetic frames. Set
 | POST | /v1/auth/register | No | — |
 | POST | /v1/auth/refresh | No | — |
 | GET | /v1/auth/me | Yes | — |
-| POST | /v1/auth/change-password | Yes | — |
 | GET | /v1/auth/users | Yes | users:read |
+| POST | /v1/auth/impersonate/{id} | Yes | users:impersonate |
 | GET | /v1/cameras | Yes | cameras:read |
-| GET | /v1/cameras/{id} | Yes | cameras:read |
 | POST | /v1/cameras | Yes | cameras:write |
 | PUT | /v1/cameras/{id} | Yes | cameras:write |
 | DELETE | /v1/cameras/{id} | Yes | cameras:delete |
-| POST | /v1/cameras/scan | Yes | cameras:scan |
-| GET | /v1/cameras/scan/status | Yes | cameras:read |
 | GET | /v1/cameras/scan/results | Yes | cameras:read |
 | GET | /v1/chickens | Yes | chickens:read |
-| GET | /v1/chickens/{id} | Yes | chickens:read |
-| POST | /v1/chickens | Yes | chickens:write |
-| PUT | /v1/chickens/{id} | Yes | chickens:write |
-| DELETE | /v1/chickens/{id} | Yes | chickens:write |
+| GET | /v1/chickens/detected | Yes | chickens:read |
+| GET | /v1/farms | Yes | farms:read |
+| POST | /v1/farms | Yes | farms:write |
 | WS | /ws | Yes (token) | — |
 | GET | /health | No | — |
 
@@ -119,7 +112,8 @@ pytest -v
 | Problem | Solution |
 |---------|----------|
 | Port conflict | Stop the service using the port, or change ports in docker-compose.yml |
-| Backend can't connect to DB | Ensure postgres container is healthy first: `docker compose logs postgres` |
-| Camera shows "Offline" | Check RTSP URL is correct, and the camera is reachable from the Docker host |
-| HLS stream not loading | Verify MediaMTX is running: `curl http://localhost:9997/v2/paths/list` |
-| ONVIF scan finds nothing | Ensure backend uses host network mode, and cameras are on the same subnet |
+| Backend can't connect to DB | Ensure postgres container is healthy: `docker compose logs postgres` |
+| Camera shows "Offline" | Check RTSP URL is correct, camera reachable from Docker host |
+| HLS stream not loading | Verify Frigate is running: `curl http://localhost:5000/api/stats` |
+| No detections appearing | Check Frigate MQTT connection: `docker compose logs frigate \| grep mqtt` |
+| MQTT connection refused | Ensure mosquitto is running: `docker compose logs mosquitto` |

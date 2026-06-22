@@ -1,66 +1,115 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import api from '../api/axios'
-import type { Camera, DetectionStats, ONVIFDevice } from '../types'
+import type { Camera, DiscoveredDevice, ScanStatus } from '../types'
+import { useAuth } from '../auth/AuthContext'
 
-export function useCameras() {
-  const [cameras, setCameras] = useState<Camera[]>([])
-  const [loading, setLoading] = useState(true)
+// Global shared state for cameras to avoid out-of-sync states between components
+let globalCameras: Camera[] = []
+let globalLoading = true
+let activeFetchPromise: Promise<void> | null = null
+let currentFetchId = 0
 
-  const fetchCameras = useCallback(async () => {
+const listeners = new Set<() => void>()
+
+function updateGlobalState(newCameras: Camera[], newLoading: boolean) {
+  globalCameras = newCameras
+  globalLoading = newLoading
+  listeners.forEach((listener) => listener())
+}
+
+async function fetchCamerasGlobal(fetchId: number) {
+  if (activeFetchPromise && fetchId === currentFetchId) {
+    return activeFetchPromise
+  }
+  activeFetchPromise = (async () => {
     try {
       const { data } = await api.get('/cameras')
-      setCameras(data)
-    } catch { /* ignore */ }
-    finally { setLoading(false) }
-  }, [])
+      if (fetchId === currentFetchId) {
+        updateGlobalState(data, false)
+      }
+    } catch {
+      if (fetchId === currentFetchId) {
+        updateGlobalState(globalCameras, false)
+      }
+    } finally {
+      if (fetchId === currentFetchId) {
+        activeFetchPromise = null
+      }
+    }
+  })()
+  return activeFetchPromise
+}
 
-  useEffect(() => { fetchCameras() }, [fetchCameras])
+export function useCameras() {
+  const { currentFarm } = useAuth()
+  const [state, setState] = useState({
+    cameras: globalCameras,
+    loading: globalLoading,
+  })
+
+  useEffect(() => {
+    const handleChange = () => {
+      setState({
+        cameras: globalCameras,
+        loading: globalLoading,
+      })
+    }
+    listeners.add(handleChange)
+    
+    // Clear in-flight promise and reset state when currentFarm changes
+    currentFetchId += 1
+    activeFetchPromise = null
+    updateGlobalState([], true)
+    fetchCamerasGlobal(currentFetchId)
+
+    return () => {
+      listeners.delete(handleChange)
+    }
+  }, [currentFarm])
 
   const addCamera = async (cameraData: Partial<Camera>) => {
     const { data } = await api.post('/cameras', cameraData)
-    setCameras((prev) => [data, ...prev])
+    const newCameras = [data, ...globalCameras]
+    updateGlobalState(newCameras, globalLoading)
     return data
   }
 
   const updateCamera = async (id: string, cameraData: Partial<Camera>) => {
     const { data } = await api.put(`/cameras/${id}`, cameraData)
-    setCameras((prev) => prev.map((c) => (c.id === id ? data : c)))
+    const newCameras = globalCameras.map((c) => (c.id === id ? data : c))
+    updateGlobalState(newCameras, globalLoading)
     return data
   }
 
   const deleteCamera = async (id: string) => {
     await api.delete(`/cameras/${id}`)
-    setCameras((prev) => prev.filter((c) => c.id !== id))
+    const newCameras = globalCameras.filter((c) => c.id !== id)
+    updateGlobalState(newCameras, globalLoading)
   }
 
-  const startScan = async (params?: { subnet?: string; ip?: string; username?: string; password?: string }) => {
-    await api.post('/cameras/scan', params ?? {})
+  const scanNetwork = async () => {
+    const { data } = await api.post('/cameras/scan')
+    return data
   }
 
-  const getScanResults = async (): Promise<ONVIFDevice[]> => {
+  const getScanStatus = async (): Promise<ScanStatus> => {
+    const { data } = await api.get('/cameras/scan/status')
+    return data
+  }
+
+  const getScanResults = async (): Promise<DiscoveredDevice[]> => {
     const { data } = await api.get('/cameras/scan/results')
     return data
   }
 
-  const startDetection = async (cameraId: string) => {
-    const { data } = await api.post(`/cameras/${cameraId}/detection/start`)
-    return data
+  return {
+    cameras: state.cameras,
+    loading: state.loading,
+    addCamera,
+    updateCamera,
+    deleteCamera,
+    scanNetwork,
+    getScanStatus,
+    getScanResults
   }
-
-  const stopDetection = async (cameraId: string) => {
-    const { data } = await api.post(`/cameras/${cameraId}/detection/stop`)
-    return data
-  }
-
-  const getDetectionStatus = async (cameraId: string): Promise<{ camera_id: string; detection_enabled: boolean }> => {
-    const { data } = await api.get(`/cameras/${cameraId}/detection/status`)
-    return data
-  }
-
-  const getDetectionStats = async (cameraId: string): Promise<DetectionStats> => {
-    const { data } = await api.get(`/cameras/${cameraId}/detection/stats`)
-    return data
-  }
-
-  return { cameras, loading, addCamera, updateCamera, deleteCamera, startScan, getScanResults, startDetection, stopDetection, getDetectionStatus, getDetectionStats, refresh: fetchCameras }
 }

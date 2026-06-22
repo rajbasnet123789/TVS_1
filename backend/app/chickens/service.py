@@ -5,12 +5,13 @@ from app.chickens.models import Chicken
 from app.chickens.schemas import ChickenCreate, ChickenUpdate
 
 
-async def create_chicken(db: AsyncSession, data: ChickenCreate) -> Chicken:
+async def create_chicken(db: AsyncSession, data: ChickenCreate, farm_id: str) -> Chicken:
     chicken = Chicken(
         chicken_id=data.chicken_id,
         name=data.name,
         breed=data.breed,
         notes=data.notes,
+        farm_id=farm_id,
     )
     db.add(chicken)
     await db.commit()
@@ -47,6 +48,9 @@ async def get_chicken(db: AsyncSession, chicken_id: str) -> Chicken | None:
     return result.scalar_one_or_none()
 
 
-async def list_chickens(db: AsyncSession) -> list[Chicken]:
-    result = await db.execute(select(Chicken).order_by(Chicken.chicken_id))
+async def list_chickens(db: AsyncSession, farm_id: str | None = None) -> list[Chicken]:
+    query = select(Chicken)
+    if farm_id:
+        query = query.where(Chicken.farm_id == farm_id)
+    result = await db.execute(query.order_by(Chicken.chicken_id))
     return result.scalars().all()

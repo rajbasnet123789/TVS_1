@@ -1,0 +1,12 @@
+mqtt:
+  host: mosquitto
+  port: 1883
+  user: {env_var.MQTT_USERNAME}
+  password: {env_var.MQTT_PASSWORD}
+  topic_prefix: frigate
+  client_id: frigate
+
+database:
+  path: /config/frigate.db
+
+cameras: {}

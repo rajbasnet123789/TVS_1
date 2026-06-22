@@ -1,10 +1,10 @@
-import { AppBar, Toolbar, Typography, IconButton, Box, Avatar, Menu, MenuItem, Tooltip } from '@mui/material'
+import { AppBar, Toolbar, Typography, IconButton, Box, Avatar, Menu, MenuItem, Tooltip, Select, FormControl } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 import { useAuth } from '../auth/AuthContext'
 import { useState } from 'react'
 
 export function Header({ onMenuClick }: { onMenuClick: () => void }) {
-  const { user, logout } = useAuth()
+  const { user, logout, farms, currentFarm, setCurrentFarm } = useAuth()
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
 
   const initials = user?.full_name?.split(' ').map((n) => n[0]).join('').toUpperCase() || '?'
@@ -15,6 +15,7 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
       sx={{ 
         zIndex: (t) => t.zIndex.drawer + 1,
         backgroundColor: '#ffffff',
+        color: '#0f172a',
         borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
         boxShadow: 'none',
         display: { xs: 'block', md: 'none' }
@@ -55,6 +56,39 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
+          {user?.role?.name === 'super_admin' && farms.length > 0 && (
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <Select
+                value={currentFarm ? currentFarm.id : 'all'}
+                onChange={(e) => {
+                  if (e.target.value === 'all') {
+                    setCurrentFarm(null)
+                  } else {
+                    const farm = farms.find((f) => f.id === e.target.value) || null
+                    setCurrentFarm(farm)
+                  }
+                }}
+                sx={{
+                  color: '#0f172a',
+                  fontSize: '0.8rem',
+                  fontFamily: '"Inter", sans-serif',
+                  fontWeight: 500,
+                  borderRadius: '8px',
+                  '& .MuiOutlinedInput-notchedOutline': { borderColor: '#e2e8f0' },
+                }}
+              >
+                <MenuItem value="all" sx={{ fontSize: '0.8rem', fontWeight: 700 }}>
+                  🌐 All Farms
+                </MenuItem>
+                {farms.map((farm) => (
+                  <MenuItem key={farm.id} value={farm.id} sx={{ fontSize: '0.8rem' }}>
+                    🏡 {farm.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+
           {/* Status Indicator Tag */}
           <Box 
             sx={{ 

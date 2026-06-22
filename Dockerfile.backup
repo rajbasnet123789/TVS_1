@@ -1,0 +1,21 @@
+FROM alpine:3.20
+
+RUN apk add --no-cache \
+    bash \
+    curl \
+    postgresql16-client \
+    && true
+
+RUN curl -sSL -o /tmp/influxdb2-client.tar.gz.sha256 https://dl.influxdata.com/influxdb/releases/influxdb2-client-2.7.5-linux-amd64.tar.gz.sha256 \
+    && curl -sSL -o /tmp/influxdb2-client.tar.gz https://dl.influxdata.com/influxdb/releases/influxdb2-client-2.7.5-linux-amd64.tar.gz \
+    && influx_hash=$(cut -d' ' -f1 /tmp/influxdb2-client.tar.gz.sha256) \
+    && echo "${influx_hash}  /tmp/influxdb2-client.tar.gz" | sha256sum -c - \
+    && mkdir -p /tmp/influxdb-extracted \
+    && tar xzf /tmp/influxdb2-client.tar.gz -C /tmp/influxdb-extracted \
+    && mv /tmp/influxdb-extracted/*/influx /usr/local/bin/influx \
+    && rm -rf /tmp/influxdb2-client.tar.gz /tmp/influxdb2-client.tar.gz.sha256 /tmp/influxdb-extracted
+
+COPY scripts/backup.sh /usr/local/bin/backup.sh
+RUN chmod +x /usr/local/bin/backup.sh
+
+CMD ["bash", "-c", "while true; do /usr/local/bin/backup.sh; sleep $((${BACKUP_INTERVAL_HOURS:-24} * 3600)); done"]

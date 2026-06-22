@@ -1,0 +1,59 @@
+# Version control
+.git
+.gitattributes
+.gitignore
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+
+# Virtual environments
+.venv
+venv
+env
+.env
+
+# IDE / editor
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Documentation (not needed in runtime image)
+*.md
+README*
+LICENSE*
+CHANGELOG*
+docs
+
+# Docker (not needed inside image)
+Dockerfile
+Dockerfile.*
+docker-compose*
+.dockerignore
+
+# Build artifacts
+dist
+build
+*.egg-info
+
+# Logs
+*.log
+logs
+
+# Tests are built separately
+tests
+mock_stream.py

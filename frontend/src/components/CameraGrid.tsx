@@ -12,7 +12,7 @@ export function CameraGrid({ compact = true }: { compact?: boolean }) {
   if (cameras.length === 0) {
     return (
       <Typography variant="body1" color="text.secondary" align="center" sx={{ py: 8 }}>
-        No cameras configured. <Link to="/cameras" style={{ color: '#10b981', fontWeight: 600, textDecoration: 'none' }}>Go to Cameras</Link> to add one.
+        No cameras configured. <Link to="/live" style={{ color: '#10b981', fontWeight: 600, textDecoration: 'none' }}>Go to Live Feed</Link> to add one.
       </Typography>
     )
   }

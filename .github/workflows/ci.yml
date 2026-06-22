@@ -1,0 +1,60 @@
+name: CI
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: poultry
+          POSTGRES_USER: poultry
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD || 'poultry' }}
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready -U poultry
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[dev]"
+        working-directory: backend
+      - name: Ruff check
+        run: ruff check .
+        working-directory: backend
+      - name: Run tests
+        run: pytest -v
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://poultry:${{ secrets.POSTGRES_PASSWORD || 'poultry' }}@localhost:5432/poultry
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'test-secret-do-not-use-in-prod' }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || 'test-encryption-key-32-bytes-long!!' }}
+          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN || 'test-token' }}
+          MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY || 'test-key' }}
+          MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY || 'test-secret' }}
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: TypeScript check
+        run: npx tsc --noEmit
+        working-directory: frontend
