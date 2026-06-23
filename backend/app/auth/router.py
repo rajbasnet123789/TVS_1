@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone, timedelta
 
 from app.auth.deps import get_current_user, get_farm_id, require_permission
@@ -13,6 +14,7 @@ from app.auth.schemas import (
     TokenRefreshRequest,
     TokenResponse,
     UserCreate,
+    UserUpdate,
     UserOut,
     AuthConfigResponse,
     GoogleLoginRequest,
@@ -262,7 +264,7 @@ async def list_users(
     db: AsyncSession = Depends(get_db),
     farm_id: str | None = Depends(get_farm_id),
 ):
-    query = select(User)
+    query = select(User).options(selectinload(User.role))
     if farm_id:
         query = query.where(User.farm_id == farm_id)
     result = await db.execute(query)
@@ -292,6 +294,49 @@ async def delete_user(
             raise HTTPException(status_code=403, detail="Access denied")
     await db.delete(target)
     await db.commit()
+
+
+@router.put("/users/{user_id}", response_model=UserOut)
+async def update_user(
+    user_id: str,
+    data: UserUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_permission("users:write")),
+):
+    result = await db.execute(select(User).where(User.id == user_id))
+    target = result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.role.name != "super_admin":
+        if target.farm_id is None or str(target.farm_id) != str(user.farm_id):
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    if data.role_name is not None:
+        role_result = await db.execute(select(Role).where(Role.name == data.role_name))
+        role = role_result.scalar_one_or_none()
+        if not role:
+            raise HTTPException(status_code=400, detail=f"Role '{data.role_name}' not found")
+        if data.role_name == "super_admin":
+            existing = await db.execute(select(User).where(User.role_id == role.id, User.id != target.id))
+            if existing.scalar_one_or_none():
+                raise HTTPException(status_code=400, detail="A super admin already exists")
+        target.role_id = role.id
+        target_role = role
+    else:
+        role_result = await db.execute(select(Role).where(Role.id == target.role_id))
+        target_role = role_result.scalar_one_or_none()
+
+    if data.farm_id is not None:
+        target.farm_id = data.farm_id or None
+    if data.is_active is not None:
+        target.is_active = data.is_active
+
+    await db.commit()
+    await db.refresh(target)
+    target.role = target_role
+    target.farm_id = str(target.farm_id) if target.farm_id else None
+    return target
 
 
 @router.get("/config", response_model=AuthConfigResponse)

@@ -10,7 +10,7 @@ import { useAuth } from '../auth/AuthContext'
 import type { User, TokenResponse } from '../types'
 
 export default function Settings() {
-  const { user, hasPermission, currentFarm, startImpersonating } = useAuth()
+  const { user, hasPermission, currentFarm, startImpersonating, farms } = useAuth()
   const [oldPw, setOldPw] = useState('')
   const [newPw, setNewPw] = useState('')
   const [pwMsg, setPwMsg] = useState('')
@@ -24,6 +24,12 @@ export default function Settings() {
   const [newName, setNewName] = useState('')
   const [newRole, setNewRole] = useState('viewer')
   const [addMsg, setAddMsg] = useState('')
+
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [editRole, setEditRole] = useState('')
+  const [editFarmId, setEditFarmId] = useState('')
+  const [editIsActive, setEditIsActive] = useState(true)
 
   const fetchUsers = useCallback(async () => {
     setUsersLoading(true)
@@ -113,6 +119,39 @@ export default function Settings() {
     }
   }
 
+  const openEditDialog = (u: User) => {
+    setEditingUser(u)
+    setEditRole(u.role?.name || 'viewer')
+    setEditFarmId(u.farm_id || '')
+    setEditIsActive(u.is_active)
+    setEditDialogOpen(true)
+  }
+
+  const handleEditUser = async () => {
+    if (!editingUser) return
+    try {
+      const payload: Record<string, unknown> = {}
+      if (editRole !== editingUser.role?.name) payload.role_name = editRole
+      if (editFarmId !== (editingUser.farm_id || '')) payload.farm_id = editFarmId || null
+      if (editIsActive !== editingUser.is_active) payload.is_active = editIsActive
+      if (Object.keys(payload).length === 0) {
+        setEditDialogOpen(false)
+        return
+      }
+      await api.put(`/auth/users/${editingUser.id}`, payload)
+      setEditDialogOpen(false)
+      setEditingUser(null)
+      fetchUsers()
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const handleEditUserClose = () => {
+    setEditDialogOpen(false)
+    setEditingUser(null)
+  }
+
   return (
     <Box>
       <Typography variant="h4" gutterBottom>Settings</Typography>
@@ -179,7 +218,7 @@ export default function Settings() {
                         <TableCell>{u.email}</TableCell>
                         <TableCell>{u.full_name || '—'}</TableCell>
                         <TableCell>{u.role?.name}</TableCell>
-                        <TableCell>{u.farm_id ? (currentFarm?.id === u.farm_id ? 'Same' : 'Different') : '—'}</TableCell>
+                        <TableCell>{u.farm_id ? (farms.find(f => f.id === u.farm_id)?.name || u.farm_id.slice(0, 8) + '...') : '—'}</TableCell>
                         <TableCell>{u.is_active ? 'Yes' : 'No'}</TableCell>
                         {(hasPermission('users:write') || hasPermission('users:impersonate')) && (
                           <TableCell>
@@ -200,6 +239,15 @@ export default function Settings() {
                                 }}
                               >
                                 View as
+                              </Button>
+                            )}
+                            {hasPermission('users:write') && (
+                              <Button
+                                size="small"
+                                disabled={u.id === user?.id}
+                                onClick={() => openEditDialog(u)}
+                              >
+                                Edit
                               </Button>
                             )}
                             {hasPermission('users:write') && u.role?.name !== 'super_admin' && (
@@ -252,6 +300,61 @@ export default function Settings() {
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={handleAddUserClose} sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '6px', color: '#64748b' }}>Cancel</Button>
           <Button variant="contained" onClick={handleAddUser} sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', px: 3, bgcolor: '#0f172a', '&:hover': { bgcolor: '#1e293b' } }}>Create</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={editDialogOpen} onClose={handleEditUserClose} maxWidth="xs" fullWidth sx={{ '& .MuiDialog-paper': { borderRadius: '12px', p: 1 } }}>
+        <DialogTitle sx={{ fontWeight: 800, fontFamily: '"Outfit", sans-serif', pb: 1 }}>
+          Edit User — {editingUser?.email}
+        </DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth margin="dense" size="small" sx={{ mb: 1.5 }}>
+            <InputLabel id="edit-user-role-label">Role</InputLabel>
+            <Select
+              labelId="edit-user-role-label"
+              value={editRole}
+              label="Role"
+              onChange={(e) => setEditRole(e.target.value)}
+              sx={{ borderRadius: '8px' }}
+            >
+              <MenuItem value="viewer">Viewer</MenuItem>
+              <MenuItem value="operator">Operator</MenuItem>
+              <MenuItem value="admin">Admin</MenuItem>
+              {user?.role?.name === 'super_admin' && <MenuItem value="super_admin">Super Admin</MenuItem>}
+            </Select>
+          </FormControl>
+          <FormControl fullWidth margin="dense" size="small" sx={{ mb: 1.5 }}>
+            <InputLabel id="edit-user-farm-label">Farm</InputLabel>
+            <Select
+              labelId="edit-user-farm-label"
+              value={editFarmId}
+              label="Farm"
+              onChange={(e) => setEditFarmId(e.target.value)}
+              sx={{ borderRadius: '8px' }}
+            >
+              <MenuItem value="">None (Super Admin)</MenuItem>
+              {farms.map((f) => (
+                <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl fullWidth margin="dense" size="small" sx={{ mb: 1.5 }}>
+            <InputLabel id="edit-user-active-label">Active</InputLabel>
+            <Select
+              labelId="edit-user-active-label"
+              value={editIsActive ? 'active' : 'inactive'}
+              label="Active"
+              onChange={(e) => setEditIsActive(e.target.value === 'active')}
+              sx={{ borderRadius: '8px' }}
+            >
+              <MenuItem value="active">Active</MenuItem>
+              <MenuItem value="inactive">Inactive</MenuItem>
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={handleEditUserClose} sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '6px', color: '#64748b' }}>Cancel</Button>
+          <Button variant="contained" onClick={handleEditUser} sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', px: 3, bgcolor: '#0f172a', '&:hover': { bgcolor: '#1e293b' } }}>Save</Button>
         </DialogActions>
       </Dialog>
     </Box>

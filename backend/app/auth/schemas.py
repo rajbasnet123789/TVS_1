@@ -47,6 +47,12 @@ class UserCreate(BaseModel):
     _validate_password = field_validator("password")(_validate_password)
 
 
+class UserUpdate(BaseModel):
+    role_name: str | None = None
+    farm_id: str | None = None
+    is_active: bool | None = None
+
+
 class UserOut(BaseModel):
     id: UUID
     email: str
