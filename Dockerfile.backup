@@ -13,7 +13,7 @@ RUN curl -sSL -o /tmp/influxdb2-client.tar.gz.sha256 https://dl.influxdata.com/i
     && echo "${influx_hash}  /tmp/influxdb2-client.tar.gz" | sha256sum -c - \
     && mkdir -p /tmp/influxdb-extracted \
     && tar xzf /tmp/influxdb2-client.tar.gz -C /tmp/influxdb-extracted \
-    && mv /tmp/influxdb-extracted/*/influx /usr/local/bin/influx \
+    && find /tmp/influxdb-extracted -type f -name influx -exec mv {} /usr/local/bin/influx \; \
     && rm -rf /tmp/influxdb2-client.tar.gz /tmp/influxdb2-client.tar.gz.sha256 /tmp/influxdb-extracted
 
 COPY scripts/backup.sh /usr/local/bin/backup.sh
