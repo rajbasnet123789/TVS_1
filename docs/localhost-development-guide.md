@@ -42,7 +42,6 @@ docker compose up -d
 | PostgreSQL | 5432 | Relational database |
 | Redis | 6379 | Cache + pub/sub + queue |
 | InfluxDB | 8086 | Time-series metrics |
-| MinIO | 9000 / 9001 | Object storage / Console |
 | Frigate API | 5000 | Frigate internal API |
 | Frigate go2rtc | 1984 | HLS/WebRTC video streams |
 | Frigate UI | 8971 | Frigate management UI |
@@ -58,8 +57,8 @@ python -m venv .venv
 .venv\Scripts\activate  # Windows
 pip install -e ".[dev]"
 
-# Ensure postgres, redis, influxdb, minio, mosquitto, frigate are running
-# (docker compose up -d postgres redis influxdb minio mosquitto frigate)
+# Ensure postgres, redis, influxdb, mosquitto, frigate are running
+# (docker compose up -d postgres redis influxdb mosquitto frigate)
 uvicorn app.main:app --reload --port 8000
 ```
 

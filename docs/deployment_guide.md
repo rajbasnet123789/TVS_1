@@ -205,7 +205,7 @@ Mosquitto requires a password file for authenticated access. Generate it **befor
 
 ```bash
 # Create the password file for the 'frigate' user
-docker run --rm -v $(pwd)/mosquitto/config:/config eclipse-mosquitto:2.0.20 \
+docker run --rm -it -v $(pwd)/mosquitto/config:/config eclipse-mosquitto:2.0.20 \
   mosquitto_passwd -c /config/passwd frigate
 
 # You will be prompted for a password — use the same value as MQTT_PASSWORD in .env

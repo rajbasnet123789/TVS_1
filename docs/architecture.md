@@ -523,7 +523,7 @@ Data is stored in three specialized databases, each optimized for its purpose:
  │  └─────────────────────────────────────────────────────────┘  │
  │                                                               │
  │  ┌─────────────────────────────────────────────────────────┐  │
- │  │  MINIO / S3 — Object Storage                            │  │
+ │  │  Local File System — Media Storage                            │  │
  │  │  ───────────                                             │  │
  │  │  Stores large files:                                     │  │
  │  │  ● Snapshots of detected chickens (for review)           │  │
@@ -946,7 +946,7 @@ The backend provides the following communication channels for the dashboard:
  │  │  ● PostgreSQL               — Relational data           │  │
  │  │  ● InfluxDB                 — Time-series data          │  │
  │  │  ● Redis                    — Cache + real-time         │  │
- │  │  ● MinIO (S3-compatible)    — File/object storage       │  │
+ │  │  ● Local File System        — Media Storage             │  │
  │  └─────────────────────────────────────────────────────────┘  │
  │                                                               │
  │  ┌─────────────────────────────────────────────────────────┐  │
@@ -1039,7 +1039,6 @@ docker run cloudflare/cloudflared tunnel --no-autoupdate run --token YOUR_TOKEN
 | `postgres` | postgres:16 | Main database (cameras, users, config) |
 | `influxdb` | influxdb:2.7 | Time-series detection data |
 | `redis` | redis:7-alpine | Caching + rate limiting |
-| `minio` | minio/minio | Object storage (snapshots) |
 | `frigate` | ghcr.io/blakeblackshear/frigate:0.17 | NVR + motion/bird detection + HLS streaming |
 | `mosquitto` | eclipse-mosquitto:2.0 | MQTT broker for Frigate events |
 | `backend` | custom | FastAPI + HealthClassifier + MCMT ReID (GPU-enabled) |
@@ -1165,7 +1164,7 @@ For non-technical stakeholders:
 - **SQL injection prevention** via parameterized queries (SQLAlchemy, InfluxDB `params=` API)
 
 ### 14.3 Data Security
-- **At-rest encryption:** PostgreSQL (TDE), MinIO (SSE-S3), InfluxDB (encryption enabled)
+- **At-rest encryption:** PostgreSQL (TDE), InfluxDB (encryption enabled), Local File Storage (disk encryption)
 - **In-transit encryption:** TLS 1.3 for all external traffic, mTLS for internal
 - **Video frames** processed in-memory, never written to disk unencrypted
 - **Database backups** encrypted with GPG before upload to cold storage
@@ -1237,7 +1236,7 @@ For non-technical stakeholders:
 |------|-----------|-----------|---------|
 | PostgreSQL | Daily | 30 days | Local + S3 |
 | InfluxDB | Hourly | 7 days | Local |
-| MinIO objects | Continuous (sync) | 90 days | S3-compatible |
+| Local Media | Daily | 14 days | Local Backup Volume |
 | Model weights | Per-version | Indefinite | MLflow + S3 |
 | Config files | Per-change | Indefinite | Git |
 | Logs | Continuous | 30d hot / 1y cold | Loki + S3 |
@@ -1516,7 +1515,7 @@ The system implements **role-based access control (RBAC)** scoped by farm. Every
 | **FAISS** | Facebook AI Similarity Search — vector database for fast identity lookup |
 | **TensorRT** | NVIDIA's model optimization engine — converts `.pt` to `.engine` for Jetson GPU acceleration |
 | **InfluxDB** | Time-series database optimized for metrics and sensor data |
-| **MinIO** | S3-compatible object store for video segments and snapshots |
+| **Local Storage** | Host filesystem directory (/var/opt/poultry/media) for media files |
 | **HLS.js** | JavaScript HLS player used in the browser dashboard for live video |
 | **VLAN** | Virtual Local Area Network — network segmentation for security |
 | **RPO/RTO** | Recovery Point Objective / Recovery Time Objective — DR metrics |
@@ -1571,7 +1570,7 @@ Camera RTSP → Frigate ingests 24/7
 ### C.2 Alert Path — Sick Chicken Detected
 ```
 HealthClassifier outputs health_class="unhealthy" with confidence > threshold
-  → save snapshot to MinIO → create alert record in PostgreSQL → 
+  → save snapshot to Local Storage → create alert record in PostgreSQL → 
   → publish alert via WebSocket → dashboard toast notification → 
   → webhook call (if configured) → SMS/Email notification
 ```
@@ -1588,7 +1587,7 @@ End user opens dashboard (browser) →
 ### C.4 Retraining Path — Model Improvement
 ```
 HealthClassifier inference → low-confidence predictions flagged →
-  → snapshots stored to MinIO → reviewed and labeled in CVAT →
+  → snapshots stored to Local Storage → reviewed and labeled in CVAT →
   → added to training dataset (DVC tracked) →
   → health model retrained → quality gates passed →
   → new best.pt deployed → hot-replaced in backend subscriber

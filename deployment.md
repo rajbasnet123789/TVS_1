@@ -109,7 +109,7 @@ LOG_LEVEL=WARNING
 
 Mosquitto requires a hashed password file for production authentication. Generate it using Docker:
 ```bash
-docker run --rm -v $(pwd)/mosquitto/config:/config eclipse-mosquitto:2.0.20 \
+docker run --rm -it -v $(pwd)/mosquitto/config:/config eclipse-mosquitto:2.0.20 \
   mosquitto_passwd -c /config/passwd frigate
 ```
 > [!IMPORTANT]
@@ -204,7 +204,7 @@ If your video surveillance feeds live on separate remote locations (different ne
 The automated `backup` container starts automatically and performs:
 - **PostgreSQL Database Dump** (`pg_dump`)
 - **InfluxDB Time-series Backup**
-- **MinIO Media files backup**
+- **Local Media files backup**
 - Saved directly to the `poultry_backups` Docker volume with a 14-day retention cycle.
 
 To run a manual backup immediately:

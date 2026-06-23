@@ -6,7 +6,7 @@ AI-powered chicken monitoring with real-time detection via **Frigate NVR**, cros
 
 - **Backend:** Python FastAPI + SQLAlchemy (GPU inference pipeline)
 - **Frontend:** React + TypeScript + Vite + Material UI
-- **Databases:** PostgreSQL (relational), InfluxDB (time-series), Redis (cache/pub-sub), MinIO (object storage)
+- **Databases:** PostgreSQL (relational), InfluxDB (time-series), Redis (cache/pub-sub), and Local File Storage (for media)
 - **NVR + Detection:** Frigate (motion-triggered bird detection, go2rtc HLS streaming)
 - **AI:** Frigate built-in detector (OpenVINO/TensorRT) + HealthClassifier (best.pt, 32 health classes) + MiewID (2152-dim ReID) + FAISS gallery for cross-camera identity matching
 
