@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['favicon.ico', 'tvs_logo.png'],
       manifest: {
-        name: 'TVS Monitoring Deck',
-        short_name: 'TVS Deck',
+        name: 'Coop Vision',
+        short_name: 'Coop Vision',
         description: 'Multi-farm, multi-user poultry monitoring system',
         theme_color: '#0f172a',
         background_color: '#f8fafc',

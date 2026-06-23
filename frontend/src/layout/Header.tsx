@@ -50,7 +50,7 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
                 mt: 0.1
               }}
             >
-              TVS Monitoring Deck
+              Coop Vision
             </Typography>
           </Box>
         </Box>

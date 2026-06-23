@@ -1,7 +1,7 @@
 [project]
 name = "poultry-backend"
 version = "0.1.0"
-description = "Poultry Monitoring System Backend"
+description = "Coop Vision Backend"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi[standard]>=0.115.0",

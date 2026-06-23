@@ -224,7 +224,7 @@ export default function Login() {
               fontSize: '1.2rem',
             }}
           >
-            TVS POULTRY
+            COOP VISION
           </Typography>
         </Box>
 
@@ -288,7 +288,7 @@ export default function Login() {
                 letterSpacing: '0.08em',
               }}
             >
-              TVS Poultry
+              Coop Vision
             </Typography>
           </Box>
 
@@ -533,7 +533,7 @@ export default function Login() {
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ color: '#64748b', lineHeight: 1.6 }}>
-            For security reasons, password resets in the TVS Poultry system are managed by system administrators. 
+            For security reasons, password resets in the Coop Vision system are managed by system administrators. 
             Please contact your farm manager or administrator to recover or reset your credentials.
           </Typography>
         </DialogContent>

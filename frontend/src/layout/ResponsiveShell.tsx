@@ -27,9 +27,9 @@ const DRAWER_WIDTH = 240
 function AuthLoading() {
   return (
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', bgcolor: '#f8fafc', gap: 3 }}>
-      <Box component="img" src="/tvs_logo.png" alt="TVS" sx={{ width: 56, height: 56, opacity: 0.8 }} />
+      <Box component="img" src="/tvs_logo.png" alt="Coop Vision" sx={{ width: 56, height: 56, opacity: 0.8 }} />
       <Typography variant="h5" sx={{ fontWeight: 700, color: '#0f172a', fontFamily: '"Outfit", sans-serif', letterSpacing: '-0.02em' }}>
-        Poultry Monitor
+        Coop Vision
       </Typography>
       <CircularProgress size={20} sx={{ color: '#94a3b8' }} />
     </Box>

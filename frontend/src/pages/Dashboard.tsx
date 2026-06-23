@@ -235,7 +235,7 @@ export default function Dashboard() {
         </Box>
         <Box>
           <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a', fontFamily: '"Outfit", sans-serif', mb: 0.5 }}>
-            Welcome to Poultry Monitor
+            Welcome to Coop Vision
           </Typography>
           <Typography variant="body2" sx={{ color: '#64748b', maxWidth: 440, mx: 'auto', lineHeight: 1.6 }}>
             This dashboard shows live camera feeds, detection analytics, and environmental data from your poultry coop. Get started by adding your first camera.

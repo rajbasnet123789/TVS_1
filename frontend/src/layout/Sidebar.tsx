@@ -93,7 +93,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
   const content = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#ffffff' }}>
       <Toolbar sx={{ px: 3, py: 2.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <Box component="img" src="/tvs_logo.png" alt="TVS Logo" sx={{ height: 36, objectFit: 'contain' }} />
+        <Box component="img" src="/tvs_logo.png" alt="Coop Vision Logo" sx={{ height: 36, objectFit: 'contain' }} />
         <Typography 
           variant="caption" 
           sx={{ 

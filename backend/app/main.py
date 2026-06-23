@@ -211,7 +211,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Poultry Monitoring API",
+    title="Coop Vision API",
     version="0.1.0",
     lifespan=lifespan,
 )
