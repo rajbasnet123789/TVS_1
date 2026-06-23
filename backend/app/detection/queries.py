@@ -42,26 +42,25 @@ def _get_influx() -> InfluxDBClient:
 def query_detection_stats(camera_id: str) -> dict:
     validate_camera_id(camera_id)
     client = _get_influx()
-    params = {"bucket": settings.influx_bucket, "camera_id": camera_id}
-    query = '''
-        from(bucket: params.bucket)
+    query = f'''
+        from(bucket: "{settings.influx_bucket}")
             |> range(start: -5m)
-            |> filter(fn: (r) => r["camera_id"] == params.camera_id)
+            |> filter(fn: (r) => r["camera_id"] == "{camera_id}")
             |> count()
     '''
     total = 0
-    for table in client.query_api().query(query, params=params):
+    for table in client.query_api().query(query):
         for record in table.records:
             total += record.get_value() or 0
 
-    unique_query = '''
-        from(bucket: params.bucket)
+    unique_query = f'''
+        from(bucket: "{settings.influx_bucket}")
             |> range(start: -5m)
-            |> filter(fn: (r) => r["camera_id"] == params.camera_id)
+            |> filter(fn: (r) => r["camera_id"] == "{camera_id}")
             |> distinct(column: "track_id")
     '''
     unique_ids = set()
-    for table in client.query_api().query(unique_query, params=params):
+    for table in client.query_api().query(unique_query):
         for record in table.records:
             unique_ids.add(record.get_value())
 
@@ -85,21 +84,19 @@ def validate_window(value: str) -> str:
 
 
 def _query_headcount_snapshot(client: InfluxDBClient, camera_id: str | None, start: str, end: str) -> list[dict]:
-    params = {"bucket": settings.influx_bucket, "start": start, "stop": end}
     filter_clause = 'r["track_id"] != "-1"'
     if camera_id:
-        params["camera_id"] = camera_id
-        filter_clause = 'r["camera_id"] == params.camera_id and r["track_id"] != "-1"'
+        filter_clause = f'r["camera_id"] == "{camera_id}" and r["track_id"] != "-1"'
     query = f'''
-        from(bucket: params.bucket)
-            |> range(start: params.start, stop: params.stop)
+        from(bucket: "{settings.influx_bucket}")
+            |> range(start: {start}, stop: {end})
             |> filter(fn: (r) => {filter_clause})
             |> distinct(column: "track_id")
             |> group()
             |> count()
     '''
     result = []
-    for table in client.query_api().query(query, params=params):
+    for table in client.query_api().query(query):
         for record in table.records:
             result.append({
                 "time": end.replace("now()", datetime.utcnow().isoformat() + "Z") if end == "now()" else end,
@@ -119,18 +116,17 @@ def query_detection_history(
     validate_time_param(end, "end")
     validate_window(window)
     client = _get_influx()
-    query = '''
-        from(bucket: params.bucket)
-            |> range(start: params.start, stop: params.stop)
-            |> filter(fn: (r) => r["camera_id"] == params.camera_id)
+    query = f'''
+        from(bucket: "{settings.influx_bucket}")
+            |> range(start: {start}, stop: {end})
+            |> filter(fn: (r) => r["camera_id"] == "{camera_id}")
             |> group()
-            |> aggregateWindow(every: params.window, fn: count, createEmpty: false)
+            |> aggregateWindow(every: {window}, fn: count, createEmpty: false)
             |> yield(name: "count")
     '''
-    params = {"bucket": settings.influx_bucket, "start": start, "stop": end, "camera_id": camera_id, "window": window}
     seen_times = set()
     detection_points = []
-    for table in client.query_api().query(query, params=params):
+    for table in client.query_api().query(query):
         for record in table.records:
             t = record.get_time()
             if t not in seen_times:
@@ -154,68 +150,67 @@ def query_detection_summary(
     validate_time_param(start, "start")
     validate_time_param(end, "end")
     client = _get_influx()
-    total_query = '''
-        from(bucket: params.bucket)
-            |> range(start: params.start, stop: params.stop)
-            |> filter(fn: (r) => r["camera_id"] == params.camera_id)
+    total_query = f'''
+        from(bucket: "{settings.influx_bucket}")
+            |> range(start: {start}, stop: {end})
+            |> filter(fn: (r) => r["camera_id"] == "{camera_id}")
             |> group()
             |> count()
     '''
-    params = {"bucket": settings.influx_bucket, "start": start, "stop": end, "camera_id": camera_id}
     total = 0
-    for table in client.query_api().query(total_query, params=params):
+    for table in client.query_api().query(total_query):
         for record in table.records:
             total += record.get_value() or 0
 
-    unique_query = '''
-        from(bucket: params.bucket)
-            |> range(start: params.start, stop: params.stop)
-            |> filter(fn: (r) => r["camera_id"] == params.camera_id)
+    unique_query = f'''
+        from(bucket: "{settings.influx_bucket}")
+            |> range(start: {start}, stop: {end})
+            |> filter(fn: (r) => r["camera_id"] == "{camera_id}")
             |> group()
             |> distinct(column: "track_id")
     '''
     unique_ids = set()
-    for table in client.query_api().query(unique_query, params=params):
+    for table in client.query_api().query(unique_query):
         for record in table.records:
             val = record.get_value()
             if val and val != "-1":
                 unique_ids.add(val)
 
-    window_counts_query = '''
-        from(bucket: params.bucket)
-            |> range(start: params.start, stop: params.stop)
-            |> filter(fn: (r) => r["camera_id"] == params.camera_id)
+    window_counts_query = f'''
+        from(bucket: "{settings.influx_bucket}")
+            |> range(start: {start}, stop: {end})
+            |> filter(fn: (r) => r["camera_id"] == "{camera_id}")
             |> group()
             |> aggregateWindow(every: 1h, fn: count, createEmpty: false)
     '''
     window_counts = []
-    for table in client.query_api().query(window_counts_query, params=params):
+    for table in client.query_api().query(window_counts_query):
         for record in table.records:
             window_counts.append(record.get_value() or 0)
 
-    peak_hc_query = '''
-        from(bucket: params.bucket)
-            |> range(start: params.start, stop: params.stop)
-            |> filter(fn: (r) => r["camera_id"] == params.camera_id and r["track_id"] != "-1")
+    peak_hc_query = f'''
+        from(bucket: "{settings.influx_bucket}")
+            |> range(start: {start}, stop: {end})
+            |> filter(fn: (r) => r["camera_id"] == "{camera_id}" and r["track_id"] != "-1")
             |> group()
             |> distinct(column: "track_id")
             |> group()
             |> count()
     '''
     peak_hc = 0
-    for table in client.query_api().query(peak_hc_query, params=params):
+    for table in client.query_api().query(peak_hc_query):
         for record in table.records:
             peak_hc = max(peak_hc, record.get_value() or 0)
 
-    avg_conf_query = '''
-        from(bucket: params.bucket)
-            |> range(start: params.start, stop: params.stop)
-            |> filter(fn: (r) => r["camera_id"] == params.camera_id and r["_field"] == "confidence")
+    avg_conf_query = f'''
+        from(bucket: "{settings.influx_bucket}")
+            |> range(start: {start}, stop: {end})
+            |> filter(fn: (r) => r["camera_id"] == "{camera_id}" and r["_field"] == "confidence")
             |> group()
             |> mean()
     '''
     avg_conf = 0.0
-    for table in client.query_api().query(avg_conf_query, params=params):
+    for table in client.query_api().query(avg_conf_query):
         for record in table.records:
             avg_conf = record.get_value() or 0.0
 
@@ -243,28 +238,26 @@ def query_global_history(
     validate_time_param(end, "end")
     validate_window(window)
     client = _get_influx()
-    params = {"bucket": settings.influx_bucket, "start": start, "stop": end, "window": window}
     if farm_id:
-        params["farm_id"] = farm_id
-        query = '''
-            from(bucket: params.bucket)
-                |> range(start: params.start, stop: params.stop)
-                |> filter(fn: (r) => r["farm_id"] == params.farm_id)
+        query = f'''
+            from(bucket: "{settings.influx_bucket}")
+                |> range(start: {start}, stop: {end})
+                |> filter(fn: (r) => r["farm_id"] == "{farm_id}")
                 |> group()
-                |> aggregateWindow(every: params.window, fn: count, createEmpty: false)
+                |> aggregateWindow(every: {window}, fn: count, createEmpty: false)
                 |> yield(name: "count")
         '''
     else:
-        query = '''
-            from(bucket: params.bucket)
-                |> range(start: params.start, stop: params.stop)
+        query = f'''
+            from(bucket: "{settings.influx_bucket}")
+                |> range(start: {start}, stop: {end})
                 |> group()
-                |> aggregateWindow(every: params.window, fn: count, createEmpty: false)
+                |> aggregateWindow(every: {window}, fn: count, createEmpty: false)
                 |> yield(name: "count")
         '''
     seen_times = set()
     detection_points = []
-    for table in client.query_api().query(query, params=params):
+    for table in client.query_api().query(query):
         for record in table.records:
             t = record.get_time()
             if t not in seen_times:
@@ -285,26 +278,24 @@ def query_detected_chickens(
     farm_id: str | None = None,
 ) -> list[dict]:
     client = _get_influx()
-    params = {"bucket": settings.influx_bucket, "start": start, "stop": end}
     if farm_id:
-        params["farm_id"] = farm_id
-        query = '''
-            from(bucket: params.bucket)
-                |> range(start: params.start, stop: params.stop)
-                |> filter(fn: (r) => r["track_id"] != "-1" and r["track_id"] != "None" and r["farm_id"] == params.farm_id)
+        query = f'''
+            from(bucket: "{settings.influx_bucket}")
+                |> range(start: {start}, stop: {end})
+                |> filter(fn: (r) => r["track_id"] != "-1" and r["track_id"] != "None" and r["farm_id"] == "{farm_id}")
                 |> group(columns: ["track_id"])
                 |> count()
         '''
     else:
-        query = '''
-            from(bucket: params.bucket)
-                |> range(start: params.start, stop: params.stop)
+        query = f'''
+            from(bucket: "{settings.influx_bucket}")
+                |> range(start: {start}, stop: {end})
                 |> filter(fn: (r) => r["track_id"] != "-1" and r["track_id"] != "None")
                 |> group(columns: ["track_id"])
                 |> count()
         '''
     track_ids = set()
-    for table in client.query_api().query(query, params=params):
+    for table in client.query_api().query(query):
         for record in table.records:
             tid = record.values.get("track_id")
             if tid and tid not in ("-1", "None"):
@@ -315,56 +306,55 @@ def query_detected_chickens(
 
     results = []
     for tid in sorted(track_ids):
-        stats_query = '''
-            from(bucket: params.bucket)
-                |> range(start: params.start, stop: params.stop)
-                |> filter(fn: (r) => r["track_id"] == string(v: params.tid))
+        stats_query = f'''
+            from(bucket: "{settings.influx_bucket}")
+                |> range(start: {start}, stop: {end})
+                |> filter(fn: (r) => r["track_id"] == string(v: "{tid}"))
                 |> group()
                 |> count()
         '''
-        stats_params = {"bucket": settings.influx_bucket, "tid": tid, "start": start, "stop": end}
         total = 0
-        for table in client.query_api().query(stats_query, params=stats_params):
+        for table in client.query_api().query(stats_query):
             for record in table.records:
                 total += record.get_value() or 0
 
-        avg_conf_query = '''
-            from(bucket: params.bucket)
-                |> range(start: params.start, stop: params.stop)
-                |> filter(fn: (r) => r["track_id"] == string(v: params.tid) and r["_field"] == "confidence")
+        avg_conf_query = f'''
+            from(bucket: "{settings.influx_bucket}")
+                |> range(start: {start}, stop: {end})
+                |> filter(fn: (r) => r["track_id"] == string(v: "{tid}") and r["_field"] == "confidence")
                 |> group()
                 |> mean()
         '''
         avg_conf = 0.0
-        for table in client.query_api().query(avg_conf_query, params=stats_params):
+        for table in client.query_api().query(avg_conf_query):
             for record in table.records:
                 avg_conf = record.get_value() or 0.0
 
-        last_query = '''
-            from(bucket: params.bucket)
-                |> range(start: params.start, stop: params.stop)
-                |> filter(fn: (r) => r["track_id"] == string(v: params.tid))
+        last_query = f'''
+            from(bucket: "{settings.influx_bucket}")
+                |> range(start: {start}, stop: {end})
+                |> filter(fn: (r) => r["track_id"] == string(v: "{tid}"))
                 |> group()
                 |> last()
         '''
         last_seen = None
         first_seen = None
         last_cameras = set()
-        for table in client.query_api().query(last_query, params=stats_params):
+        for table in client.query_api().query(last_query):
             for record in table.records:
                 last_seen = record.get_time()
                 cam = record.values.get("camera_id")
                 if cam:
                     last_cameras.add(cam)
 
-        first_query = '''
-            from(bucket: params.bucket)
-                |> range(start: params.start, stop: params.stop)
-                |> filter(fn: (r) => r["track_id"] == string(v: params.tid))
+        first_query = f'''
+            from(bucket: "{settings.influx_bucket}")
+                |> range(start: {start}, stop: {end})
+                |> filter(fn: (r) => r["track_id"] == string(v: "{tid}"))
                 |> group()
                 |> first()
         '''
-        for table in client.query_api().query(first_query, params=stats_params):
+        for table in client.query_api().query(first_query):
             for record in table.records:
                 first_seen = record.get_time()
                 if first_seen:
@@ -395,16 +385,15 @@ def query_raw_detections(
     limit: int = 100,
 ) -> list[dict]:
     client = _get_influx()
-    query = '''
-        from(bucket: params.bucket)
-            |> range(start: params.start, stop: params.stop)
-            |> filter(fn: (r) => r["camera_id"] == params.camera_id)
+    query = f'''
+        from(bucket: "{settings.influx_bucket}")
+            |> range(start: {start}, stop: {end})
+            |> filter(fn: (r) => r["camera_id"] == "{camera_id}")
             |> sort(columns: ["_time"], desc: true)
-            |> limit(n: params.limit)
+            |> limit(n: {limit})
     '''
-    params = {"bucket": settings.influx_bucket, "start": start, "stop": end, "camera_id": camera_id, "limit": limit}
     results = []
-    for table in client.query_api().query(query, params=params):
+    for table in client.query_api().query(query):
         for record in table.records:
             results.append({
                 "time": record.get_time(),

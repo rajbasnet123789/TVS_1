@@ -115,6 +115,8 @@ async def register(
     db.add(user)
     await db.commit()
     await db.refresh(user)
+    user.role = role
+    user.farm_id = str(user.farm_id) if user.farm_id else None
     return user
 
 
