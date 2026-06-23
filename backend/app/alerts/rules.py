@@ -60,9 +60,9 @@ async def _check_inactivity(rule: AlertRule):
     try:
         duration = f"-{int(rule.duration_minutes)}m"
         query = '''
-            from(bucket: params.bucket)
-                |> range(start: params.duration, stop: now())
-                |> filter(fn: (r) => r["farm_id"] == params.farm_id)
+            from(bucket: bucket)
+                |> range(start: duration, stop: now())
+                |> filter(fn: (r) => r["farm_id"] == farm_id)
                 |> filter(fn: (r) => r["track_id"] != "-1" and r["track_id"] != "None")
                 |> group(columns: ["track_id"])
                 |> last()
@@ -113,12 +113,12 @@ async def _check_health_critical(rule: AlertRule):
     client = _get_client()
     try:
         query = '''
-            from(bucket: params.bucket)
+            from(bucket: bucket)
                 |> range(start: -5m)
-                |> filter(fn: (r) => r["farm_id"] == params.farm_id)
+                |> filter(fn: (r) => r["farm_id"] == farm_id)
                 |> filter(fn: (r) => r["_measurement"] == "health")
                 |> filter(fn: (r) => r["_field"] == "health_score")
-                |> filter(fn: (r) => r._value < params.threshold)
+                |> filter(fn: (r) => r._value < threshold)
                 |> group(columns: ["track_id", "camera_id"])
                 |> last()
         '''
@@ -163,9 +163,9 @@ async def _check_health_drop(rule: AlertRule):
     client = _get_client()
     try:
         now_mean_query = '''
-            from(bucket: params.bucket)
+            from(bucket: bucket)
                 |> range(start: -5m)
-                |> filter(fn: (r) => r["farm_id"] == params.farm_id)
+                |> filter(fn: (r) => r["farm_id"] == farm_id)
                 |> filter(fn: (r) => r["_measurement"] == "health")
                 |> filter(fn: (r) => r["_field"] == "health_score")
                 |> group(columns: ["track_id"])
@@ -183,12 +183,12 @@ async def _check_health_drop(rule: AlertRule):
                 tid = record.values.get("track_id")
                 if tid:
                     now_scores[tid] = record.get_value() or 0
-
+ 
         past_duration = f"-{max(int(rule.duration_minutes), 60)}m"
         past_mean_query = '''
-            from(bucket: params.bucket)
-                |> range(start: params.past_duration, stop: -5m)
-                |> filter(fn: (r) => r["farm_id"] == params.farm_id)
+            from(bucket: bucket)
+                |> range(start: past_duration, stop: -5m)
+                |> filter(fn: (r) => r["farm_id"] == farm_id)
                 |> filter(fn: (r) => r["_measurement"] == "health")
                 |> filter(fn: (r) => r["_field"] == "health_score")
                 |> group(columns: ["track_id"])
@@ -241,9 +241,9 @@ async def _check_missing_chicken(rule: AlertRule):
     try:
         duration = f"-{int(rule.duration_minutes)}m"
         query = '''
-            from(bucket: params.bucket)
-                |> range(start: params.duration, stop: now())
-                |> filter(fn: (r) => r["farm_id"] == params.farm_id)
+            from(bucket: bucket)
+                |> range(start: duration, stop: now())
+                |> filter(fn: (r) => r["farm_id"] == farm_id)
                 |> filter(fn: (r) => r["_measurement"] == "detections")
                 |> group(columns: ["track_id"])
                 |> last()

@@ -19,9 +19,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir --default-timeout=1000 --retries=10 --upgrade pip setuptools wheel
 COPY backend/pyproject.toml .
-RUN useradd --system --no-create-home appuser
+RUN useradd --system --create-home appuser
 COPY --chown=appuser:appuser backend/ .
 RUN pip install --no-cache-dir --default-timeout=1000 --retries=10 -e "."
+RUN mkdir -p /usr/local/lib/python3.11/site-packages/models && chown -R appuser:appuser /usr/local/lib/python3.11/site-packages/models
 USER appuser
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
@@ -33,9 +34,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir --default-timeout=1000 --retries=10 --upgrade pip setuptools wheel
 COPY backend/pyproject.toml .
-RUN useradd --system --no-create-home appuser
+RUN useradd --system --create-home appuser
 COPY --chown=appuser:appuser backend/ .
 RUN pip install --no-cache-dir --default-timeout=1000 --retries=10 -e "."
+RUN mkdir -p /usr/local/lib/python3.11/site-packages/models && chown -R appuser:appuser /usr/local/lib/python3.11/site-packages/models
 USER appuser
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
