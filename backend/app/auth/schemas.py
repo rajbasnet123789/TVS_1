@@ -42,14 +42,14 @@ class UserCreate(BaseModel):
     password: str
     full_name: str
     role_name: str = "viewer"
-    farm_id: str | None = None
+    farm_id: UUID | None = None
 
     _validate_password = field_validator("password")(_validate_password)
 
 
 class UserUpdate(BaseModel):
     role_name: str | None = None
-    farm_id: str | None = None
+    farm_id: UUID | None = None
     is_active: bool | None = None
 
 
@@ -58,7 +58,7 @@ class UserOut(BaseModel):
     email: str
     full_name: str | None
     role: RoleOut
-    farm_id: str | None
+    farm_id: UUID | None
     is_active: bool
     must_change_password: bool
     last_login: datetime | None

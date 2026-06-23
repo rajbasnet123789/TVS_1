@@ -81,13 +81,14 @@ async def db_session():
     if _test_engine is None:
         pytest.skip("No database available")
         return
+
     try:
-        conn = await _test_engine.connect()
+        connection = await _test_engine.connect()
     except Exception as e:
         pytest.skip(f"Database connection failed: {e}")
         return
 
-    async with conn as connection:
+    try:
         # First transaction to clean up any dirty database state
         clean_trans = await connection.begin()
         session = AsyncSession(bind=connection, expire_on_commit=False)
@@ -125,6 +126,8 @@ async def db_session():
         yield session
         await session.close()
         await transaction.rollback()
+    finally:
+        await connection.close()
 
 @pytest_asyncio.fixture(autouse=True)
 async def mock_redis(monkeypatch):
