@@ -61,7 +61,7 @@ async def _check_inactivity(rule: AlertRule):
         duration = f"-{int(rule.duration_minutes)}m"
         query = '''
             from(bucket: bucket)
-                |> range(start: duration(v: duration), stop: now())
+                |> range(start: duration(v: duration_str), stop: now())
                 |> filter(fn: (r) => r["farm_id"] == farm_id)
                 |> filter(fn: (r) => r["track_id"] != "-1" and r["track_id"] != "None")
                 |> group(columns: ["track_id"])
@@ -69,7 +69,7 @@ async def _check_inactivity(rule: AlertRule):
         '''
         params = {
             "bucket": settings.influx_bucket,
-            "duration": duration,
+            "duration_str": duration,
             "farm_id": str(rule.farm_id),
         }
         loop = asyncio.get_running_loop()
@@ -242,7 +242,7 @@ async def _check_missing_chicken(rule: AlertRule):
         duration = f"-{int(rule.duration_minutes)}m"
         query = '''
             from(bucket: bucket)
-                |> range(start: duration(v: duration), stop: now())
+                |> range(start: duration(v: duration_str), stop: now())
                 |> filter(fn: (r) => r["farm_id"] == farm_id)
                 |> filter(fn: (r) => r["_measurement"] == "detections")
                 |> group(columns: ["track_id"])
@@ -250,7 +250,7 @@ async def _check_missing_chicken(rule: AlertRule):
         '''
         params = {
             "bucket": settings.influx_bucket,
-            "duration": duration,
+            "duration_str": duration,
             "farm_id": str(rule.farm_id),
         }
         loop = asyncio.get_running_loop()
