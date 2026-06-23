@@ -95,7 +95,7 @@ services:
         max-file: "3"
 
   frigate:
-    image: ghcr.io/blakeblackshear/frigate:0.17.2
+    image: ghcr.io/blakeblackshear/frigate:stable-tensorrt
     shm_size: "256mb"
     ports:
       - "8971:8971"
