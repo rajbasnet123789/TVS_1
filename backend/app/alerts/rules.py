@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -58,10 +58,10 @@ def _get_client():
 async def _check_inactivity(rule: AlertRule):
     client = _get_client()
     try:
-        duration = f"-{int(rule.duration_minutes)}m"
+        start_time = (datetime.now(timezone.utc) - timedelta(minutes=int(rule.duration_minutes))).isoformat()
         query = '''
             from(bucket: bucket)
-                |> range(start: duration(v: duration_str), stop: now())
+                |> range(start: time(v: start_time), stop: now())
                 |> filter(fn: (r) => r["farm_id"] == farm_id)
                 |> filter(fn: (r) => r["track_id"] != "-1" and r["track_id"] != "None")
                 |> group(columns: ["track_id"])
@@ -69,7 +69,7 @@ async def _check_inactivity(rule: AlertRule):
         '''
         params = {
             "bucket": settings.influx_bucket,
-            "duration_str": duration,
+            "start_time": start_time,
             "farm_id": str(rule.farm_id),
         }
         loop = asyncio.get_running_loop()
@@ -184,10 +184,10 @@ async def _check_health_drop(rule: AlertRule):
                 if tid:
                     now_scores[tid] = record.get_value() or 0
  
-        past_duration = f"-{max(int(rule.duration_minutes), 60)}m"
+        past_start = (datetime.now(timezone.utc) - timedelta(minutes=max(int(rule.duration_minutes), 60))).isoformat()
         past_mean_query = '''
             from(bucket: bucket)
-                |> range(start: duration(v: past_duration), stop: -5m)
+                |> range(start: time(v: past_start), stop: -5m)
                 |> filter(fn: (r) => r["farm_id"] == farm_id)
                 |> filter(fn: (r) => r["_measurement"] == "health")
                 |> filter(fn: (r) => r["_field"] == "health_score")
@@ -197,7 +197,7 @@ async def _check_health_drop(rule: AlertRule):
         params_past = {
             "bucket": settings.influx_bucket,
             "farm_id": str(rule.farm_id),
-            "past_duration": past_duration,
+            "past_start": past_start,
         }
         past_tables = await loop.run_in_executor(None, lambda: client.query_api().query(past_mean_query, params=params_past))
         past_scores = {}
@@ -239,10 +239,10 @@ async def _check_health_drop(rule: AlertRule):
 async def _check_missing_chicken(rule: AlertRule):
     client = _get_client()
     try:
-        duration = f"-{int(rule.duration_minutes)}m"
+        start_time = (datetime.now(timezone.utc) - timedelta(minutes=int(rule.duration_minutes))).isoformat()
         query = '''
             from(bucket: bucket)
-                |> range(start: duration(v: duration_str), stop: now())
+                |> range(start: time(v: start_time), stop: now())
                 |> filter(fn: (r) => r["farm_id"] == farm_id)
                 |> filter(fn: (r) => r["_measurement"] == "detections")
                 |> group(columns: ["track_id"])
@@ -250,7 +250,7 @@ async def _check_missing_chicken(rule: AlertRule):
         '''
         params = {
             "bucket": settings.influx_bucket,
-            "duration_str": duration,
+            "start_time": start_time,
             "farm_id": str(rule.farm_id),
         }
         loop = asyncio.get_running_loop()
