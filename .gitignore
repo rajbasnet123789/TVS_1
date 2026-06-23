@@ -95,6 +95,10 @@ ehthumbs.db
 *.bmp
 *.gif
 
+# Exceptions for required frontend assets
+!frontend/public/hens_optimized.mp4
+!frontend/public/tvs_logo.png
+
 # SavedModel / TensorFlow
 **/saved_model.pb
 **/variables/
