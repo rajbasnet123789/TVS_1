@@ -8,6 +8,7 @@ let globalCameras: Camera[] = []
 let globalLoading = true
 let activeFetchPromise: Promise<void> | null = null
 let currentFetchId = 0
+let lastFetchedFarmId: string | null | undefined = undefined
 
 const listeners = new Set<() => void>()
 
@@ -56,11 +57,16 @@ export function useCameras() {
     }
     listeners.add(handleChange)
     
-    // Clear in-flight promise and reset state when currentFarm changes
-    currentFetchId += 1
-    activeFetchPromise = null
-    updateGlobalState([], true)
-    fetchCamerasGlobal(currentFetchId)
+    const farmId = currentFarm?.id
+
+    // Only clear and fetch if the farm has changed or we haven't loaded yet
+    if (lastFetchedFarmId !== farmId || (globalCameras.length === 0 && globalLoading && !activeFetchPromise)) {
+      lastFetchedFarmId = farmId
+      currentFetchId += 1
+      activeFetchPromise = null
+      updateGlobalState([], true)
+      fetchCamerasGlobal(currentFetchId)
+    }
 
     return () => {
       listeners.delete(handleChange)

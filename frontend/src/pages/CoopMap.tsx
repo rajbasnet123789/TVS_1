@@ -31,8 +31,10 @@ export default function CoopMap() {
   const [assignCameraId, setAssignCameraId] = useState('')
   const [assignCoopId, setAssignCoopId] = useState('')
 
-  const loadCoops = useCallback(async () => {
-    setLoading(true)
+  const loadCoops = useCallback(async (isSilent = false) => {
+    if (!isSilent) {
+      setLoading(true)
+    }
     setError('')
     try {
       const { data } = await api.get('/coops')
@@ -40,7 +42,9 @@ export default function CoopMap() {
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to load coops')
     } finally {
-      setLoading(false)
+      if (!isSilent) {
+        setLoading(false)
+      }
     }
   }, [])
 
@@ -158,6 +162,7 @@ export default function CoopMap() {
                 onCameraClick={handleCameraClick}
                 onEdit={handleOpenEdit}
                 onDelete={handleDeleteCoop}
+                onRefresh={loadCoops}
               />
             </Grid>
           ))}

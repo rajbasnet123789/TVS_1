@@ -12,6 +12,7 @@ export default defineConfig({
         name: 'Coop Vision',
         short_name: 'Coop Vision',
         description: 'Multi-farm, multi-user poultry monitoring system',
+        id: '/?source=pwa',
         theme_color: '#0f172a',
         background_color: '#f8fafc',
         display: 'standalone',
@@ -39,6 +40,22 @@ export default defineConfig({
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable'
+          }
+        ],
+        screenshots: [
+          {
+            src: 'dashboard_screenshot.png',
+            sizes: '1920x1080',
+            type: 'image/png',
+            form_factor: 'wide',
+            label: 'Coop Vision Dashboard'
+          },
+          {
+            src: 'login_screenshot.png',
+            sizes: '1920x1080',
+            type: 'image/png',
+            form_factor: 'narrow',
+            label: 'Coop Vision Login Page'
           }
         ]
       },

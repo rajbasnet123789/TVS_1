@@ -59,10 +59,8 @@ export default function Dashboard() {
   const [humidity, setHumidity] = useState<number | null>(null)
   const [windSpeed, setWindSpeed] = useState<number | null>(null)
 
-  const [penAActive, setPenAActive] = useState(false)
-  const [penBActive, setPenBActive] = useState(false)
-  const penATimeout = useRef<number>()
-  const penBTimeout = useRef<number>()
+  const [activeCoops, setActiveCoops] = useState<Record<string, boolean>>({})
+  const activeCoopTimeouts = useRef<Record<string, number>>({})
 
   // Calculate dynamic initials
   const initials = user?.full_name?.split(' ').map((n) => n[0]).join('').toUpperCase() || 'SA'
@@ -139,8 +137,7 @@ export default function Dashboard() {
     const interval = setInterval(fetchStats, 5000)
     return () => {
       clearInterval(interval)
-      if (penATimeout.current) window.clearTimeout(penATimeout.current)
-      if (penBTimeout.current) window.clearTimeout(penBTimeout.current)
+      Object.values(activeCoopTimeouts.current).forEach(t => window.clearTimeout(t))
     }
   }, [currentFarm])
 
@@ -150,18 +147,17 @@ export default function Dashboard() {
       const now = new Date()
       const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
       
-      const camName = msg.camera_name || ''
-      const isPenA = camName.toLowerCase().includes('pen a') || camName.toLowerCase().includes('main')
-      
-      // Update Pen Active State on Coop Map
-      if (isPenA) {
-        setPenAActive(true)
-        if (penATimeout.current) window.clearTimeout(penATimeout.current)
-        penATimeout.current = window.setTimeout(() => setPenAActive(false), 2500)
-      } else {
-        setPenBActive(true)
-        if (penBTimeout.current) window.clearTimeout(penBTimeout.current)
-        penBTimeout.current = window.setTimeout(() => setPenBActive(false), 2500)
+      const cam = cameras.find((c: any) => c.name === msg.camera_name || c.id === msg.camera_id)
+      const camName = msg.camera_name || cam?.name || 'Unknown'
+      const coopId = cam?.coop_id
+      if (coopId) {
+        setActiveCoops(prev => ({ ...prev, [coopId]: true }))
+        if (activeCoopTimeouts.current[coopId]) {
+          window.clearTimeout(activeCoopTimeouts.current[coopId])
+        }
+        activeCoopTimeouts.current[coopId] = window.setTimeout(() => {
+          setActiveCoops(prev => ({ ...prev, [coopId]: false }))
+        }, 2500)
       }
 
       if (msg.detections && msg.detections.length > 0) {
@@ -293,7 +289,7 @@ export default function Dashboard() {
     }
   }
 
-  const slots = cameras.map((c: any) => ({ id: c.id, name: c.name, location: c.location }))
+  const slots = cameras.slice(0, 3).map((c: any) => ({ id: c.id, name: c.name, location: c.location }))
 
   return (
     <Box sx={{ pb: 4 }}>
@@ -716,81 +712,54 @@ export default function Dashboard() {
                     overflow: 'hidden'
                   }}
                 >
-                  {/* Pen A Enclosure overlay */}
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      left: '12%',
-                      top: '15%',
-                      width: '34%',
-                      height: '70%',
-                      border: penAActive ? '2px dashed #10b981' : '2px dashed #cbd5e1',
-                      borderRadius: '12px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      bgcolor: penAActive ? 'rgba(232, 245, 233, 0.9)' : 'rgba(255, 255, 255, 0.85)',
-                      backdropFilter: 'blur(2px)',
-                      transition: 'all 0.3s ease',
-                      boxShadow: penAActive ? '0 4px 15px rgba(16, 185, 129, 0.1)' : 'none'
-                    }}
-                  >
-                    <Box 
-                      sx={{ 
-                        width: 8, 
-                        height: 8, 
-                        borderRadius: '50%', 
-                        bgcolor: penAActive ? '#10b981' : '#94a3b8',
-                        mb: 1,
-                        boxShadow: penAActive ? '0 0 8px #10b981' : 'none'
-                      }} 
-                    />
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.8rem', letterSpacing: '0.05em' }}>
-                      PEN A
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: penAActive ? '#10b981' : '#64748b', fontWeight: 600, fontSize: '0.7rem' }}>
-                      {penAActive ? 'Active' : 'No activity'}
-                    </Typography>
-                  </Box>
-
-                  {/* Pen B Enclosure overlay */}
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      right: '12%',
-                      top: '15%',
-                      width: '34%',
-                      height: '70%',
-                      border: penBActive ? '2px dashed #10b981' : '2px dashed #cbd5e1',
-                      borderRadius: '12px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      bgcolor: penBActive ? 'rgba(232, 245, 233, 0.9)' : 'rgba(255, 255, 255, 0.85)',
-                      backdropFilter: 'blur(2px)',
-                      transition: 'all 0.3s ease',
-                      boxShadow: penBActive ? '0 4px 15px rgba(16, 185, 129, 0.1)' : 'none'
-                    }}
-                  >
-                    <Box 
-                      sx={{ 
-                        width: 8, 
-                        height: 8, 
-                        borderRadius: '50%', 
-                        bgcolor: penBActive ? '#10b981' : '#94a3b8',
-                        mb: 1,
-                        boxShadow: penBActive ? '0 0 8px #10b981' : 'none'
-                      }} 
-                    />
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.8rem', letterSpacing: '0.05em' }}>
-                      PEN B
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: penBActive ? '#10b981' : '#64748b', fontWeight: 600, fontSize: '0.7rem' }}>
-                      {penBActive ? 'Active' : 'No activity'}
-                    </Typography>
-                  </Box>
+                  {coops.filter(c => c.id !== '00000000-0000-0000-0000-000000000000').slice(0, 3).map((coop) => {
+                    const isActive = !!activeCoops[coop.id]
+                    return (
+                      <Box
+                        key={coop.id}
+                        onClick={() => navigate('/coop-map')}
+                        sx={{
+                          flex: '1 1 140px',
+                          maxWidth: '180px',
+                          height: '140px',
+                          border: isActive ? '2px dashed #10b981' : '2px dashed #cbd5e1',
+                          borderRadius: '12px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          bgcolor: isActive ? 'rgba(232, 245, 233, 0.95)' : 'rgba(255, 255, 255, 0.9)',
+                          backdropFilter: 'blur(2px)',
+                          transition: 'all 0.3s ease',
+                          boxShadow: isActive ? '0 4px 15px rgba(16, 185, 129, 0.15)' : 'none',
+                          cursor: 'pointer',
+                          '&:hover': {
+                            borderColor: '#5e5ce6',
+                            bgcolor: '#f5f3ff',
+                            transform: 'translateY(-2px)',
+                            boxShadow: '0 4px 12px rgba(94, 92, 230, 0.15)',
+                          }
+                        }}
+                      >
+                        <Box 
+                          sx={{ 
+                            width: 8, 
+                            height: 8, 
+                            borderRadius: '50%', 
+                            bgcolor: isActive ? '#10b981' : '#94a3b8',
+                            mb: 1.5,
+                            boxShadow: isActive ? '0 0 8px #10b981' : 'none'
+                          }} 
+                        />
+                        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.8rem', letterSpacing: '0.05em', textTransform: 'uppercase', textAlign: 'center', px: 1 }}>
+                          {coop.name}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: isActive ? '#10b981' : '#64748b', fontWeight: 600, fontSize: '0.7rem', mt: 0.5 }}>
+                          {isActive ? 'Active' : 'No activity'}
+                        </Typography>
+                      </Box>
+                    )
+                  })}
                 </Box>
               )}
             </Card>

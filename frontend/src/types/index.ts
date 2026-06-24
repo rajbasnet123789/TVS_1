@@ -44,6 +44,9 @@ export interface Camera {
   coop_id: string | null
   snapshot_url: string | null
   roi: number[][] | null
+  pos_x: number
+  pos_y: number
+  pos_z: number
   created_at: string
 }
 

@@ -717,6 +717,14 @@ export function CameraFeed({ id, name, hlsUrl, status, compact = false }: Camera
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <TextField
                   fullWidth
+                  label="Camera ID (Read-only)"
+                  value={id}
+                  size="small"
+                  InputProps={{ readOnly: true }}
+                  disabled
+                />
+                <TextField
+                  fullWidth
                   label="Name"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
