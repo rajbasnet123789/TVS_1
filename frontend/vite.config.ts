@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['favicon.ico', 'tvs_logo.png'],
+      includeAssets: ['tvs_logo.png'],
       manifest: {
         name: 'Coop Vision',
         short_name: 'Coop Vision',
