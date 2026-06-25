@@ -64,7 +64,14 @@ export function ResponsiveShell() {
   const isOnline = useOnlineStatus()
 
   if (loading) return <AuthLoading />
-  if (!user) return <Login />
+  if (!user) {
+    return (
+      <>
+        <Login />
+        <PWAPrompt />
+      </>
+    )
+  }
 
   return (
     <Box sx={{ display: 'flex', bgcolor: '#f8fafc', minHeight: '100vh' }}>
