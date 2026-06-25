@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['tvs_logo.png'],
+      includeAssets: ['tvs_logo.png', 'tvs_logo_192.png', 'tvs_logo_512.png'],
       manifest: {
         name: 'Coop Vision',
         short_name: 'Coop Vision',
@@ -16,27 +16,35 @@ export default defineConfig({
         theme_color: '#0f172a',
         background_color: '#f8fafc',
         display: 'standalone',
+        display_override: ['standalone', 'window-controls-overlay'],
         orientation: 'portrait-primary',
         start_url: '/',
+        dir: 'ltr',
+        categories: ['business', 'utilities'],
+        prefer_related_applications: false,
+        related_applications: [],
+        launch_handler: {
+          client_mode: ['navigate-existing', 'auto']
+        },
         icons: [
           {
-            src: 'tvs_logo.png',
+            src: 'tvs_logo_192.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: 'tvs_logo.png',
+            src: 'tvs_logo_512.png',
             sizes: '512x512',
             type: 'image/png'
           },
           {
-            src: 'tvs_logo.png',
+            src: 'tvs_logo_192.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'maskable'
           },
           {
-            src: 'tvs_logo.png',
+            src: 'tvs_logo_512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable'
@@ -45,17 +53,29 @@ export default defineConfig({
         screenshots: [
           {
             src: 'dashboard_screenshot.png',
-            sizes: '1920x1080',
+            sizes: '1920x945',
             type: 'image/png',
             form_factor: 'wide',
             label: 'Coop Vision Dashboard'
           },
           {
             src: 'login_screenshot.png',
-            sizes: '1920x1080',
+            sizes: '1920x945',
             type: 'image/png',
             form_factor: 'narrow',
             label: 'Coop Vision Login Page'
+          }
+        ],
+        shortcuts: [
+          {
+            name: 'Overview',
+            url: '/',
+            icons: [{ src: 'tvs_logo_192.png', sizes: '192x192', type: 'image/png' }]
+          },
+          {
+            name: 'Live Feed',
+            url: '/live',
+            icons: [{ src: 'tvs_logo_192.png', sizes: '192x192', type: 'image/png' }]
           }
         ]
       },

@@ -98,6 +98,8 @@ ehthumbs.db
 # Exceptions for required frontend assets
 !frontend/public/hens_optimized.mp4
 !frontend/public/tvs_logo.png
+!frontend/public/tvs_logo_192.png
+!frontend/public/tvs_logo_512.png
 !frontend/public/login_screenshot.png
 !frontend/public/dashboard_screenshot.png
 !frontend/src/test/
