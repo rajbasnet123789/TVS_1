@@ -102,7 +102,7 @@ export default function Reports() {
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={4}>
-          <Card sx={{ border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+          <Card>
             <CardContent sx={{ textAlign: 'center', py: 3 }}>
               <Typography variant="h4" sx={{ fontWeight: 800, color: '#5e5ce6' }}>{totals.detections.toLocaleString()}</Typography>
               <Typography variant="body2" color="text.secondary">Total Detections</Typography>
@@ -110,7 +110,7 @@ export default function Reports() {
           </Card>
         </Grid>
         <Grid item xs={12} sm={4}>
-          <Card sx={{ border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+          <Card>
             <CardContent sx={{ textAlign: 'center', py: 3 }}>
               <Typography variant="h4" sx={{ fontWeight: 800, color: '#10b981' }}>{totals.unique}</Typography>
               <Typography variant="body2" color="text.secondary">Unique Chickens</Typography>
@@ -118,7 +118,7 @@ export default function Reports() {
           </Card>
         </Grid>
         <Grid item xs={12} sm={4}>
-          <Card sx={{ border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+          <Card>
             <CardContent sx={{ textAlign: 'center', py: 3 }}>
               <Typography variant="h4" sx={{ fontWeight: 800, color: '#f59e0b' }}>{totals.peak}</Typography>
               <Typography variant="body2" color="text.secondary">Peak Headcount</Typography>

@@ -14,9 +14,11 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
       position="fixed" 
       sx={{ 
         zIndex: (t) => t.zIndex.drawer + 1,
-        backgroundColor: '#ffffff',
+        backgroundColor: 'rgba(255, 255, 255, 0.55)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
         color: '#0f172a',
-        borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.4)',
         boxShadow: 'none',
         display: { xs: 'block', md: 'none' }
       }}

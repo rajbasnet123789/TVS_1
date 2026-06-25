@@ -471,7 +471,7 @@ export default function Dashboard() {
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {/* A. Farms Overview Table */}
           <Grid item xs={12} lg={8}>
-            <Card sx={{ height: '100%', border: '1px solid #e2e8f0', boxShadow: 'none', display: 'flex', flexDirection: 'column', p: 2.5 }}>
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 2.5 }}>
               <Box sx={{ mb: 2 }}>
                 <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, letterSpacing: '0.08em', fontSize: '0.7rem' }}>
                   SYSTEM REGISTRY
@@ -568,7 +568,7 @@ export default function Dashboard() {
 
           {/* B. Activity Timeline Card */}
           <Grid item xs={12} lg={4}>
-            <Card sx={{ height: '100%', border: '1px solid #e2e8f0', boxShadow: 'none', display: 'flex', flexDirection: 'column', p: 2.5 }}>
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 2.5 }}>
               <Box sx={{ mb: 2.5 }}>
                 <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, letterSpacing: '0.08em', fontSize: '0.7rem' }}>
                   ACTIVITY TIMELINE
@@ -631,7 +631,7 @@ export default function Dashboard() {
           {/* C. Global Video Wall */}
           {cameras.filter((c: any) => c.status === 'online').length > 0 && (
             <Grid item xs={12} sx={{ mt: 1 }}>
-              <Card sx={{ border: '1px solid #e2e8f0', boxShadow: 'none', p: 2.5 }}>
+              <Card sx={{ p: 2.5 }}>
                 <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, letterSpacing: '0.08em', fontSize: '0.7rem', display: 'block', mb: 2 }}>
                   GLOBAL VIDEO WALL
                 </Typography>
@@ -659,7 +659,7 @@ export default function Dashboard() {
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {/* A. Coop Map Card */}
           <Grid item xs={12} lg={5}>
-            <Card sx={{ height: '100%', border: '1px solid #e2e8f0', boxShadow: 'none', display: 'flex', flexDirection: 'column', p: 2.5 }}>
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 2.5 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                 <Box>
                   <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, letterSpacing: '0.08em', fontSize: '0.7rem' }}>
@@ -767,7 +767,7 @@ export default function Dashboard() {
 
           {/* B. Live Cameras Card */}
           <Grid item xs={12} md={6} lg={3.5}>
-            <Card sx={{ height: '100%', border: '1px solid #e2e8f0', boxShadow: 'none', display: 'flex', flexDirection: 'column', p: 2.5 }}>
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 2.5 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                 <Box>
                   <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, letterSpacing: '0.08em', fontSize: '0.7rem' }}>
@@ -856,7 +856,7 @@ export default function Dashboard() {
 
           {/* C. Activity Timeline Card */}
           <Grid item xs={12} md={6} lg={3.5}>
-            <Card sx={{ height: '100%', border: '1px solid #e2e8f0', boxShadow: 'none', display: 'flex', flexDirection: 'column', p: 2.5 }}>
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 2.5 }}>
               <Box sx={{ mb: 2.5 }}>
                 <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, letterSpacing: '0.08em', fontSize: '0.7rem' }}>
                   ACTIVITY TIMELINE
@@ -966,7 +966,7 @@ export default function Dashboard() {
       {currentFarm === null && user?.role?.name === 'super_admin' ? (
         <Grid container spacing={3}>
           <Grid item xs={12}>
-            <Card sx={{ border: '1px solid #e2e8f0', boxShadow: 'none', display: 'flex', flexDirection: 'column', p: 3, textAlign: 'center', bgcolor: '#f8fafc', borderRadius: '12px' }}>
+            <Card sx={{ display: 'flex', flexDirection: 'column', p: 3, textAlign: 'center', borderRadius: '12px' }}>
               <ThermostatIcon sx={{ fontSize: 40, color: '#94a3b8', mx: 'auto', mb: 1.5 }} />
               <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#334155', fontFamily: '"Outfit", sans-serif', mb: 0.5 }}>
                 Farm Telemetry Scope
@@ -981,7 +981,7 @@ export default function Dashboard() {
         <Grid container spacing={3}>
           {/* Environment Summary Grid & Banner */}
           <Grid item xs={12}>
-            <Card sx={{ height: '100%', border: '1px solid #e2e8f0', boxShadow: 'none', display: 'flex', flexDirection: 'column', p: 0 }}>
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 0 }}>
               <Box sx={{ p: 2.5, pb: 1.5 }}>
                 <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, letterSpacing: '0.08em', fontSize: '0.7rem' }}>
                   ENVIRONMENT SUMMARY

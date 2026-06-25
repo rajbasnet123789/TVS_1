@@ -65,7 +65,7 @@ export default function ProfitLoss() {
       <Grid container spacing={3}>
         {/* Input Card */}
         <Grid item xs={12} md={5}>
-          <Card sx={{ border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+          <Card>
             <CardContent sx={{ p: 3 }}>
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 3 }}>Flock Parameters</Typography>
 
@@ -206,7 +206,7 @@ export default function ProfitLoss() {
           )}
 
           {!result && !error && (
-            <Card sx={{ border: '1px solid #e2e8f0', boxShadow: 'none', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Card sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <CardContent sx={{ textAlign: 'center', py: 8 }}>
                 <CurrencyExchangeIcon sx={{ fontSize: 64, color: '#cbd5e1', mb: 2 }} />
                 <Typography variant="h6" sx={{ fontWeight: 700, color: '#94a3b8' }}>Enter parameters & calculate</Typography>
@@ -220,7 +220,7 @@ export default function ProfitLoss() {
               {/* Key metrics */}
               <Grid container spacing={2} sx={{ mb: 2 }}>
                 <Grid item xs={6} sm={3}>
-                  <Card sx={{ border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+                  <Card>
                     <CardContent sx={{ textAlign: 'center', py: 2 }}>
                       <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Projected</Typography>
                       <Typography variant="h5" sx={{ fontWeight: 800, fontFamily: '"JetBrains Mono", monospace' }}>{result.projected_headcount}</Typography>
@@ -229,7 +229,7 @@ export default function ProfitLoss() {
                   </Card>
                 </Grid>
                 <Grid item xs={6} sm={3}>
-                  <Card sx={{ border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+                  <Card>
                     <CardContent sx={{ textAlign: 'center', py: 2 }}>
                       <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Revenue</Typography>
                       <Typography variant="h5" sx={{ fontWeight: 800, color: '#10b981', fontFamily: '"JetBrains Mono", monospace' }}>{formatCurrency(result.revenue)}</Typography>
@@ -237,7 +237,7 @@ export default function ProfitLoss() {
                   </Card>
                 </Grid>
                 <Grid item xs={6} sm={3}>
-                  <Card sx={{ border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+                  <Card>
                     <CardContent sx={{ textAlign: 'center', py: 2 }}>
                       <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Costs</Typography>
                       <Typography variant="h5" sx={{ fontWeight: 800, color: '#ef4444', fontFamily: '"JetBrains Mono", monospace' }}>{formatCurrency(result.costs.total_costs)}</Typography>
@@ -245,7 +245,7 @@ export default function ProfitLoss() {
                   </Card>
                 </Grid>
                 <Grid item xs={6} sm={3}>
-                  <Card sx={{ border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+                  <Card>
                     <CardContent sx={{ textAlign: 'center', py: 2 }}>
                       <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Net {result.is_profitable ? 'Profit' : 'Loss'}</Typography>
                       <Typography variant="h5" sx={{ fontWeight: 800, color: result.is_profitable ? '#10b981' : '#ef4444', fontFamily: '"JetBrains Mono", monospace' }}>
@@ -257,7 +257,7 @@ export default function ProfitLoss() {
               </Grid>
 
               {/* Cost Breakdown */}
-              <Card sx={{ border: '1px solid #e2e8f0', boxShadow: 'none', mb: 2 }}>
+              <Card sx={{ mb: 2 }}>
                 <CardContent sx={{ p: 3 }}>
                   <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Cost Breakdown</Typography>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -286,7 +286,7 @@ export default function ProfitLoss() {
               </Card>
 
               {/* Profit Margins + Context */}
-              <Card sx={{ border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+              <Card>
                 <CardContent sx={{ p: 3 }}>
                   <Grid container spacing={2}>
                     <Grid item xs={12} sm={6}>

@@ -50,8 +50,11 @@ export const muiTheme = createTheme({
     MuiCssBaseline: {
       styleOverrides: {
         body: {
-          backgroundColor: '#f8fafc',
+          backgroundColor: '#f1f5f9',
+          backgroundImage: 'radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.03) 0px, transparent 50%), radial-gradient(at 100% 0%, rgba(0, 243, 255, 0.03) 0px, transparent 50%), radial-gradient(at 50% 100%, rgba(94, 92, 230, 0.02) 0px, transparent 50%)',
+          backgroundAttachment: 'fixed',
           color: '#0f172a',
+          minHeight: '100vh',
         },
       },
     },
@@ -59,13 +62,16 @@ export const muiTheme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
-          backgroundColor: '#ffffff',
-          border: '1px solid rgba(0, 0, 0, 0.05)',
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.02), 0 1px 2px -1px rgba(0, 0, 0, 0.02)',
+          backgroundColor: 'rgba(255, 255, 255, 0.45)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.5)',
+          boxShadow: '0 8px 32px 0 rgba(15, 23, 42, 0.03)',
           transition: 'all 0.2s ease-in-out',
           '&:hover': {
-            borderColor: 'rgba(16, 185, 129, 0.2)',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
+            backgroundColor: 'rgba(255, 255, 255, 0.65)',
+            borderColor: 'rgba(16, 185, 129, 0.25)',
+            boxShadow: '0 8px 32px 0 rgba(15, 23, 42, 0.06)',
           },
         },
       },
@@ -73,8 +79,10 @@ export const muiTheme = createTheme({
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          backgroundColor: '#f8fafc',
-          borderRight: '1px solid rgba(0, 0, 0, 0.05)',
+          backgroundColor: 'rgba(255, 255, 255, 0.55)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderRight: '1px solid rgba(255, 255, 255, 0.4)',
         },
       },
     },

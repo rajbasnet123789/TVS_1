@@ -34,17 +34,12 @@ export function StatCard({ title, value, icon, color, subtitle, onClick, to }: {
       sx={{
         cursor: handleClick ? 'pointer' : 'default',
         transition: 'all 0.2s ease-in-out',
-        border: '1px solid #e2e8f0',
-        boxShadow: 'none',
         '&:hover': handleClick ? {
           transform: 'translateY(-2px)',
           borderColor: iconColor,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
-        } : {
-          '&:hover': {
-            borderColor: '#cbd5e1'
-          }
-        },
+          boxShadow: '0 8px 32px 0 rgba(15, 23, 42, 0.08)',
+          backgroundColor: 'rgba(255, 255, 255, 0.65)',
+        } : undefined,
       }}
     >
       <CardContent 

@@ -24,6 +24,20 @@ import { PWAPrompt } from '../components/PWAPrompt'
 
 const DRAWER_WIDTH = 240
 
+const BackgroundBlob = ({ sx }: { sx: any }) => (
+  <Box
+    sx={{
+      position: 'fixed',
+      borderRadius: '50%',
+      filter: 'blur(100px)',
+      opacity: { xs: 0.08, sm: 0.12 },
+      zIndex: -1,
+      pointerEvents: 'none',
+      ...sx,
+    }}
+  />
+)
+
 function AuthLoading() {
   return (
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', bgcolor: '#f8fafc', gap: 3 }}>
@@ -74,7 +88,10 @@ export function ResponsiveShell() {
   }
 
   return (
-    <Box sx={{ display: 'flex', bgcolor: '#f8fafc', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', bgcolor: 'transparent', minHeight: '100vh', position: 'relative' }}>
+      <BackgroundBlob sx={{ top: '-10%', left: '-10%', width: '40vw', height: '40vw', bgcolor: '#10b981' }} />
+      <BackgroundBlob sx={{ bottom: '10%', right: '-10%', width: '50vw', height: '50vw', bgcolor: '#00f3ff' }} />
+      <BackgroundBlob sx={{ top: '30%', right: '10%', width: '35vw', height: '35vw', bgcolor: '#5e5ce6' }} />
       <Header onMenuClick={() => setMobileOpen(true)} />
       <Sidebar open={mobileOpen} onClose={() => setMobileOpen(false)} />
 
