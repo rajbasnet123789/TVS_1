@@ -27,7 +27,7 @@ const DRAWER_WIDTH = 240
 function AuthLoading() {
   return (
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', bgcolor: '#f8fafc', gap: 3 }}>
-      <Box component="img" src="/tvs_logo.png" alt="Coop Vision" sx={{ width: 56, height: 56, opacity: 0.8 }} />
+      <Box component="img" src="/tvs_logo.png" alt="Coop Vision" sx={{ height: 64, width: 'auto', opacity: 0.85, objectFit: 'contain' }} />
       <Typography variant="h5" sx={{ fontWeight: 700, color: '#0f172a', fontFamily: '"Outfit", sans-serif', letterSpacing: '-0.02em' }}>
         Coop Vision
       </Typography>

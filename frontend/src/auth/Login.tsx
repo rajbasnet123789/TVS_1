@@ -190,8 +190,8 @@ export default function Login() {
                 setLogoError(true);
               }}
               sx={{
-                width: 32,
-                height: 32,
+                height: 48,
+                width: 'auto',
                 objectFit: 'contain',
                 borderRadius: 1,
               }}
@@ -255,8 +255,8 @@ export default function Login() {
                 alt="TVS Logo"
                 onError={() => setLogoError(true)}
                 sx={{
-                  width: 28,
-                  height: 28,
+                  height: 44,
+                  width: 'auto',
                   objectFit: 'contain',
                   borderRadius: 1,
                 }}
