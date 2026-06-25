@@ -76,7 +76,14 @@ export default function LiveFeed() {
 
   return (
     <Box>
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box sx={{ 
+        mb: 4, 
+        display: 'flex', 
+        flexDirection: { xs: 'column', sm: 'row' }, 
+        justifyContent: 'space-between', 
+        alignItems: { xs: 'flex-start', sm: 'center' }, 
+        gap: { xs: 2, sm: 0 } 
+      }}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.5 }}>Live Feed</Typography>
           <Typography variant="body2" color="text.secondary">
@@ -85,7 +92,7 @@ export default function LiveFeed() {
               : 'No cameras configured yet'}
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', gap: 1.5, width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'flex-start', sm: 'flex-end' } }}>
           {hasPermission('cameras:scan') && (
             <Button variant="outlined" startIcon={<SearchIcon />} onClick={async () => {
               setScanDialogOpen(true)

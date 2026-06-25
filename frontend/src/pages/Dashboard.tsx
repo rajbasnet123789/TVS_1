@@ -481,15 +481,15 @@ export default function Dashboard() {
                 </Typography>
               </Box>
 
-              <TableContainer component={Paper} sx={{ border: '1px solid #e2e8f0', boxShadow: 'none', borderRadius: '8px', mt: 1, overflow: 'hidden' }}>
+              <TableContainer component={Paper} sx={{ border: '1px solid #e2e8f0', boxShadow: 'none', borderRadius: '8px', mt: 1, overflowX: 'auto', width: '100%' }}>
                 <Table size="small">
                   <TableHead sx={{ bgcolor: '#f8fafc' }}>
                     <TableRow>
                       <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1.5 }}>Farm Name</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1.5 }}>Location</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, fontWeight: 700, color: '#475569', py: 1.5 }}>Location</TableCell>
                       <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1.5 }} align="center">Cameras</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1.5 }} align="center">Active Chickens</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1.5 }}>Health Status</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, fontWeight: 700, color: '#475569', py: 1.5 }} align="center">Active Chickens</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, fontWeight: 700, color: '#475569', py: 1.5 }}>Health Status</TableCell>
                       <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1.5 }} align="right">Actions</TableCell>
                     </TableRow>
                   </TableHead>
@@ -525,16 +525,16 @@ export default function Dashboard() {
                           <TableCell sx={{ fontWeight: 600, fontFamily: '"Outfit", sans-serif' }}>
                             🏡 {farm.name}
                           </TableCell>
-                          <TableCell sx={{ color: 'text.secondary' }}>
+                          <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, color: 'text.secondary' }}>
                             {farm.location || '—'}
                           </TableCell>
                           <TableCell align="center" sx={{ fontFamily: '"JetBrains Mono", monospace', fontWeight: 700 }}>
                             {onlineCams} / {totalCams}
                           </TableCell>
-                          <TableCell align="center" sx={{ fontFamily: '"JetBrains Mono", monospace', fontWeight: 700 }}>
+                          <TableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' }, fontFamily: '"JetBrains Mono", monospace', fontWeight: 700 }}>
                             {farmChickens}
                           </TableCell>
-                          <TableCell>
+                          <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                             <Chip label={healthStatus} size="small" color={chipColor} sx={{ fontWeight: 700, borderRadius: '6px', fontSize: '0.7rem' }} />
                           </TableCell>
                           <TableCell align="right">
@@ -1000,9 +1000,9 @@ export default function Dashboard() {
                     </Typography>
                   </Box>
                 ) : (
-                <Grid container spacing={1} sx={{ textAlign: 'center', height: '100%', alignItems: 'center' }}>
+                <Grid container spacing={2.5} sx={{ textAlign: 'center', height: '100%', alignItems: 'center' }}>
                   {/* Temp */}
-                  <Grid item xs={3}>
+                  <Grid item xs={6} sm={3} sx={{ py: 1 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1, color: '#475569' }}>
                       <ThermostatIcon />
                     </Box>
@@ -1018,7 +1018,7 @@ export default function Dashboard() {
                   </Grid>
 
                   {/* Ammonia */}
-                  <Grid item xs={3}>
+                  <Grid item xs={6} sm={3} sx={{ py: 1 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1, color: '#475569' }}>
                       <CloudQueueIcon />
                     </Box>
@@ -1034,7 +1034,7 @@ export default function Dashboard() {
                   </Grid>
 
                   {/* Humidity */}
-                  <Grid item xs={3}>
+                  <Grid item xs={6} sm={3} sx={{ py: 1 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1, color: '#475569' }}>
                       <WaterDropOutlinedIcon />
                     </Box>
@@ -1050,7 +1050,7 @@ export default function Dashboard() {
                   </Grid>
 
                   {/* Wind Speed */}
-                  <Grid item xs={3}>
+                  <Grid item xs={6} sm={3} sx={{ py: 1 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1, color: '#475569' }}>
                       <AirIcon />
                     </Box>

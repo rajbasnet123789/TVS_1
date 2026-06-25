@@ -200,15 +200,15 @@ export default function Settings() {
             ) : users.length === 0 ? (
               <Typography variant="body2" color="text.secondary">No users found.</Typography>
             ) : (
-              <TableContainer>
+              <TableContainer sx={{ overflowX: 'auto', width: '100%' }}>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
                       <TableCell>Email</TableCell>
-                      <TableCell>Name</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Name</TableCell>
                       <TableCell>Role</TableCell>
-                      <TableCell>Farm</TableCell>
-                      <TableCell>Active</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Farm</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Active</TableCell>
                       {(hasPermission('users:write') || hasPermission('users:impersonate')) && <TableCell>Actions</TableCell>}
                     </TableRow>
                   </TableHead>
@@ -216,10 +216,10 @@ export default function Settings() {
                     {users.map((u) => (
                       <TableRow key={u.id}>
                         <TableCell>{u.email}</TableCell>
-                        <TableCell>{u.full_name || '—'}</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{u.full_name || '—'}</TableCell>
                         <TableCell>{u.role?.name}</TableCell>
-                        <TableCell>{u.farm_id ? (farms.find(f => f.id === u.farm_id)?.name || u.farm_id.slice(0, 8) + '...') : '—'}</TableCell>
-                        <TableCell>{u.is_active ? 'Yes' : 'No'}</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{u.farm_id ? (farms.find(f => f.id === u.farm_id)?.name || u.farm_id.slice(0, 8) + '...') : '—'}</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{u.is_active ? 'Yes' : 'No'}</TableCell>
                         {(hasPermission('users:write') || hasPermission('users:impersonate')) && (
                           <TableCell>
                             <Box sx={{ display: 'flex', gap: 0.5 }}>

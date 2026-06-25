@@ -136,7 +136,7 @@ export default function ProfitLoss() {
               />
 
               <Grid container spacing={2} sx={{ mb: 2.5 }}>
-                <Grid item xs={6}>
+                <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
                     label="No. of Labourers"
@@ -146,7 +146,7 @@ export default function ProfitLoss() {
                     slotProps={{ input: { sx: { fontWeight: 600, fontFamily: '"JetBrains Mono", monospace' } } }}
                   />
                 </Grid>
-                <Grid item xs={6}>
+                <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
                     label="Daily Rate / Labourer (₹)"

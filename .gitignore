@@ -100,6 +100,7 @@ ehthumbs.db
 !frontend/public/tvs_logo.png
 !frontend/public/login_screenshot.png
 !frontend/public/dashboard_screenshot.png
+!frontend/src/test/
 
 # SavedModel / TensorFlow
 **/saved_model.pb

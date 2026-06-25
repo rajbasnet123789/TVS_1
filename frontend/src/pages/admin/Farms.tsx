@@ -101,15 +101,15 @@ export default function AdminFarms() {
       {loading ? (
         <Typography variant="body2" color="text.secondary">Loading...</Typography>
       ) : (
-        <TableContainer>
+        <TableContainer sx={{ overflowX: 'auto', width: '100%' }}>
           <Table size="small">
             <TableHead>
               <TableRow>
                 <TableCell>Name</TableCell>
-                <TableCell>Location</TableCell>
-                <TableCell>Slug</TableCell>
+                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Location</TableCell>
+                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Slug</TableCell>
                 <TableCell>Status</TableCell>
-                <TableCell>Created</TableCell>
+                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Created</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -117,12 +117,12 @@ export default function AdminFarms() {
               {farms.map((farm) => (
                 <TableRow key={farm.id}>
                   <TableCell>{farm.name}</TableCell>
-                  <TableCell>{farm.location || '—'}</TableCell>
-                  <TableCell>{farm.slug}</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{farm.location || '—'}</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{farm.slug}</TableCell>
                   <TableCell>
                     <Chip size="small" label={farm.is_active ? 'Active' : 'Inactive'} color={farm.is_active ? 'success' : 'default'} />
                   </TableCell>
-                  <TableCell>{new Date(farm.created_at).toLocaleDateString()}</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{new Date(farm.created_at).toLocaleDateString()}</TableCell>
                   <TableCell>
                     <Button size="small" onClick={() => openEdit(farm)} sx={{ mr: 1 }}>Edit</Button>
                     <Button size="small" color="error" onClick={() => openDelete(farm)}>Delete</Button>

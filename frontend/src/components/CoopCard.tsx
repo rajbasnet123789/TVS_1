@@ -297,6 +297,7 @@ export function CoopCard({ coop, canWrite, onCameraClick, onEdit, onDelete, onRe
                     zIndex: isDragging ? 10 : 2,
                     cursor: canWrite ? (isDragging ? 'grabbing' : 'grab') : 'pointer',
                     transition: isDragging ? 'none' : 'left 0.15s ease-out, top 0.15s ease-out',
+                    touchAction: 'none',
                   }}
                 >
                   {/* Mount Bracket */}
@@ -364,7 +365,7 @@ export function CoopCard({ coop, canWrite, onCameraClick, onEdit, onDelete, onRe
             </Typography>
           </Box>
         ) : (
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 1.5, mt: 0.5 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(auto-fill, minmax(110px, 1fr))', sm: 'repeat(auto-fill, minmax(130px, 1fr))' }, gap: 1.5, mt: 0.5 }}>
             {coop.cameras.map((cam) => (
               <Box
                 key={cam.id}

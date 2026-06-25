@@ -55,9 +55,9 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
           </Box>
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2.5 } }}>
           {user?.role?.name === 'super_admin' && farms.length > 0 && (
-            <FormControl size="small" sx={{ minWidth: 140 }}>
+            <FormControl size="small" sx={{ minWidth: { xs: 110, sm: 140 } }}>
               <Select
                 value={currentFarm ? currentFarm.id : 'all'}
                 onChange={(e) => {
@@ -70,7 +70,7 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
                 }}
                 sx={{
                   color: '#0f172a',
-                  fontSize: '0.8rem',
+                  fontSize: { xs: '0.75rem', sm: '0.8rem' },
                   fontFamily: '"Inter", sans-serif',
                   fontWeight: 500,
                   borderRadius: '8px',
@@ -92,7 +92,7 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
           {/* Status Indicator Tag */}
           <Box 
             sx={{ 
-              display: 'flex', 
+              display: { xs: 'none', sm: 'flex' }, 
               alignItems: 'center', 
               gap: 1,
               bgcolor: '#e8f5e9',

@@ -182,14 +182,21 @@ export default function Alerts() {
 
   return (
     <Box>
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box sx={{ 
+        mb: 4, 
+        display: 'flex', 
+        flexDirection: { xs: 'column', sm: 'row' }, 
+        justifyContent: 'space-between', 
+        alignItems: { xs: 'flex-start', sm: 'center' }, 
+        gap: { xs: 2, sm: 0 } 
+      }}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.5 }}>System Alerts</Typography>
           <Typography variant="body2" color="text.secondary">
             Monitor real-time security events, health anomalies, and camera operations
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', gap: 1.5, width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'flex-start', sm: 'flex-end' } }}>
           {tabValue === 0 && (
             <Button
               variant="outlined"
@@ -280,14 +287,14 @@ export default function Alerts() {
               <Typography variant="body2" color="text.secondary">No active alerts at this time.</Typography>
             </Paper>
           ) : (
-            <TableContainer component={Paper} sx={{ border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+            <TableContainer component={Paper} sx={{ border: '1px solid #e2e8f0', boxShadow: 'none', overflowX: 'auto', width: '100%' }}>
               <Table>
                 <TableHead>
                   <TableRow>
                     <TableCell>Time</TableCell>
-                    <TableCell>Camera ID</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Camera ID</TableCell>
                     <TableCell>Type</TableCell>
-                    <TableCell>Severity</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Severity</TableCell>
                     <TableCell>Message</TableCell>
                     <TableCell align="right">Action</TableCell>
                   </TableRow>
@@ -305,16 +312,16 @@ export default function Alerts() {
                         } : {}}
                       >
                         <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(alert.created_at)}</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>{alert.camera_id || 'Global'}</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, fontWeight: 600 }}>{alert.camera_id || 'Global'}</TableCell>
                         <TableCell>
-                          <Chip
-                            label={alert.type.toUpperCase()}
-                            size="small"
-                            color={isIntruder ? 'error' : alert.type === 'health_critical' ? 'warning' : 'default'}
-                            sx={{ fontWeight: 700, fontSize: '0.7rem', borderRadius: '4px' }}
-                          />
+                           <Chip
+                             label={alert.type.toUpperCase()}
+                             size="small"
+                             color={isIntruder ? 'error' : alert.type === 'health_critical' ? 'warning' : 'default'}
+                             sx={{ fontWeight: 700, fontSize: '0.7rem', borderRadius: '4px' }}
+                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                           <Chip
                             label={alert.severity === 2 ? 'CRITICAL' : alert.severity === 1 ? 'HIGH' : 'MEDIUM'}
                             size="small"

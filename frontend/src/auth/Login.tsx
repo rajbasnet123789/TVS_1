@@ -66,9 +66,10 @@ export default function Login() {
           client_id: googleClientId,
           callback: handleGoogleLogin,
         });
+        const dynamicWidth = Math.min(380, Math.max(200, window.innerWidth - 64));
         (window as any).google.accounts.id.renderButton(
           document.getElementById('google-signin-btn'),
-          { theme: 'outline', size: 'large', width: 380, shape: 'rectangular' }
+          { theme: 'outline', size: 'large', width: dynamicWidth, shape: 'rectangular' }
         )
       }
     }
@@ -239,7 +240,7 @@ export default function Login() {
           flexDirection: 'column',
           justifyContent: 'center',
           bgcolor: '#ffffff',
-          px: { xs: 4, sm: 8, md: 10 },
+          px: { xs: 2.5, sm: 6, md: 10 },
           borderLeft: '1px solid',
           borderColor: '#e2e8f0',
         }}

@@ -79,7 +79,14 @@ export default function Reports() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+      <Box sx={{ 
+        mb: 3, 
+        display: 'flex', 
+        flexDirection: { xs: 'column', sm: 'row' }, 
+        justifyContent: 'space-between', 
+        alignItems: { xs: 'flex-start', sm: 'center' }, 
+        gap: { xs: 2, sm: 0 } 
+      }}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.5 }}>Reports</Typography>
           <Typography variant="body2" color="text.secondary">
@@ -87,7 +94,7 @@ export default function Reports() {
           </Typography>
         </Box>
         {stats.length > 0 && (
-          <Button variant="outlined" startIcon={<DownloadIcon />} onClick={exportCSV}>
+          <Button variant="outlined" startIcon={<DownloadIcon />} onClick={exportCSV} sx={{ width: { xs: '100%', sm: 'auto' } }}>
             Export CSV
           </Button>
         )}
@@ -126,16 +133,16 @@ export default function Reports() {
           <Typography variant="body2" color="text.secondary">No cameras configured or detection data available.</Typography>
         </Paper>
       ) : (
-        <TableContainer component={Paper} sx={{ border: '1px solid #e2e8f0', boxShadow: 'none' }}>
+        <TableContainer component={Paper} sx={{ border: '1px solid #e2e8f0', boxShadow: 'none', overflowX: 'auto', width: '100%' }}>
           <Table>
             <TableHead>
               <TableRow>
                 <TableCell>Camera</TableCell>
                 <TableCell align="right">Total Detections</TableCell>
                 <TableCell align="right">Unique Chickens</TableCell>
-                <TableCell align="right">Peak Headcount</TableCell>
-                <TableCell align="right">Avg Confidence</TableCell>
-                <TableCell align="right">Detections / hr</TableCell>
+                <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Peak Headcount</TableCell>
+                <TableCell align="right" sx={{ display: { xs: 'none', md: 'table-cell' } }}>Avg Confidence</TableCell>
+                <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Detections / hr</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -144,8 +151,8 @@ export default function Reports() {
                   <TableCell sx={{ fontWeight: 600 }}>{s.name}</TableCell>
                   <TableCell align="right" sx={{ fontFamily: '"JetBrains Mono", monospace', fontWeight: 600 }}>{s.total_detections.toLocaleString()}</TableCell>
                   <TableCell align="right" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>{s.unique_chickens}</TableCell>
-                  <TableCell align="right" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>{s.peak_head_count}</TableCell>
-                  <TableCell align="right">
+                  <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' }, fontFamily: '"JetBrains Mono", monospace' }}>{s.peak_head_count}</TableCell>
+                  <TableCell align="right" sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                     <Chip
                       label={(s.avg_confidence * 100).toFixed(0) + '%'}
                       size="small"
@@ -153,7 +160,7 @@ export default function Reports() {
                       sx={{ fontWeight: 600, fontSize: '0.75rem', borderRadius: '6px' }}
                     />
                   </TableCell>
-                  <TableCell align="right" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>{s.detections_per_hour.toFixed(1)}</TableCell>
+                  <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' }, fontFamily: '"JetBrains Mono", monospace' }}>{s.detections_per_hour.toFixed(1)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
