@@ -3,7 +3,7 @@ import {
   Box, Typography, Card, CardContent, TextField, Button,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Dialog, DialogTitle, DialogContent, DialogActions,
-  FormControl, InputLabel, Select, MenuItem
+  FormControl, InputLabel, Select, MenuItem, Chip
 } from '@mui/material'
 import api from '../api/axios'
 import { useAuth } from '../auth/AuthContext'
@@ -200,74 +200,154 @@ export default function Settings() {
             ) : users.length === 0 ? (
               <Typography variant="body2" color="text.secondary">No users found.</Typography>
             ) : (
-              <TableContainer sx={{ overflowX: 'auto', width: '100%' }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Email</TableCell>
-                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Name</TableCell>
-                      <TableCell>Role</TableCell>
-                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Farm</TableCell>
-                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Active</TableCell>
-                      {(hasPermission('users:write') || hasPermission('users:impersonate')) && <TableCell>Actions</TableCell>}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {users.map((u) => (
-                      <TableRow key={u.id}>
-                        <TableCell>{u.email}</TableCell>
-                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{u.full_name || '—'}</TableCell>
-                        <TableCell>{u.role?.name}</TableCell>
-                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{u.farm_id ? (farms.find(f => f.id === u.farm_id)?.name || u.farm_id.slice(0, 8) + '...') : '—'}</TableCell>
-                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{u.is_active ? 'Yes' : 'No'}</TableCell>
-                        {(hasPermission('users:write') || hasPermission('users:impersonate')) && (
-                          <TableCell>
-                            <Box sx={{ display: 'flex', gap: 0.5 }}>
-                            {hasPermission('users:impersonate') && (
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                disabled={!u.is_active}
-                                onClick={async () => {
-                                  try {
-                                    const { data } = await api.post<TokenResponse & { impersonating: { id: string; email: string; full_name: string | null; role: string; permissions: string[] } }>(`/auth/impersonate/${u.id}`)
-                                    startImpersonating(data.access_token, data.impersonating)
-                                    window.location.href = '/'
-                                  } catch {
-                                    /* ignore */
-                                  }
-                                }}
-                              >
-                                View as
-                              </Button>
-                            )}
-                            {hasPermission('users:write') && (
-                              <Button
-                                size="small"
-                                disabled={u.id === user?.id}
-                                onClick={() => openEditDialog(u)}
-                              >
-                                Edit
-                              </Button>
-                            )}
-                            {hasPermission('users:write') && u.role?.name !== 'super_admin' && (
-                              <Button
-                                size="small"
-                                color="error"
-                                disabled={u.id === user?.id}
-                                onClick={() => handleDeleteUser(u.id)}
-                              >
-                                Delete
-                              </Button>
-                            )}
-                            </Box>
-                          </TableCell>
-                        )}
+              <>
+                {/* Mobile View: Stacked Cards */}
+                <Box sx={{ display: { xs: 'flex', sm: 'none' }, flexDirection: 'column', gap: 2 }}>
+                  {users.map((u) => (
+                    <Box key={u.id} sx={{ p: 2, border: '1px solid #e2e8f0', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700, wordBreak: 'break-all', fontFamily: '"Outfit", sans-serif' }}>
+                            {u.email}
+                          </Typography>
+                          {u.full_name && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                              👤 {u.full_name}
+                            </Typography>
+                          )}
+                        </Box>
+                        <Chip label={u.role?.name} size="small" color="primary" variant="outlined" sx={{ fontWeight: 600, textTransform: 'capitalize', borderRadius: '6px' }} />
+                      </Box>
+                      
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Farm: {u.farm_id ? (farms.find(f => f.id === u.farm_id)?.name || 'Farm User') : 'All (Super Admin)'}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: u.is_active ? 'success.main' : 'text.secondary', fontWeight: 600 }}>
+                          {u.is_active ? '● Active' : '○ Inactive'}
+                        </Typography>
+                      </Box>
+
+                      {(hasPermission('users:write') || hasPermission('users:impersonate')) && (
+                        <Box sx={{ display: 'flex', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
+                          {hasPermission('users:impersonate') && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              disabled={!u.is_active}
+                              onClick={async () => {
+                                try {
+                                  const { data } = await api.post<TokenResponse & { impersonating: { id: string; email: string; full_name: string | null; role: string; permissions: string[] } }>(`/auth/impersonate/${u.id}`)
+                                  startImpersonating(data.access_token, data.impersonating)
+                                  window.location.href = '/'
+                                } catch {
+                                  /* ignore */
+                                }
+                              }}
+                              sx={{ flexGrow: 1, textTransform: 'none', borderRadius: '6px', fontSize: '0.75rem' }}
+                            >
+                              View as
+                            </Button>
+                          )}
+                          {hasPermission('users:write') && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              disabled={u.id === user?.id}
+                              onClick={() => openEditDialog(u)}
+                              sx={{ flexGrow: 1, textTransform: 'none', borderRadius: '6px', fontSize: '0.75rem' }}
+                            >
+                              Edit
+                            </Button>
+                          )}
+                          {hasPermission('users:write') && u.role?.name !== 'super_admin' && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="error"
+                              disabled={u.id === user?.id}
+                              onClick={() => handleDeleteUser(u.id)}
+                              sx={{ flexGrow: 1, textTransform: 'none', borderRadius: '6px', fontSize: '0.75rem' }}
+                            >
+                              Delete
+                            </Button>
+                          )}
+                        </Box>
+                      )}
+                    </Box>
+                  ))}
+                </Box>
+
+                {/* Desktop View: Table */}
+                <TableContainer sx={{ display: { xs: 'none', sm: 'block' }, border: '1px solid #e2e8f0', boxShadow: 'none', borderRadius: '8px' }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Email</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Name</TableCell>
+                        <TableCell>Role</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Farm</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Active</TableCell>
+                        {(hasPermission('users:write') || hasPermission('users:impersonate')) && <TableCell>Actions</TableCell>}
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+                    </TableHead>
+                    <TableBody>
+                      {users.map((u) => (
+                        <TableRow key={u.id}>
+                          <TableCell>{u.email}</TableCell>
+                          <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{u.full_name || '—'}</TableCell>
+                          <TableCell>{u.role?.name}</TableCell>
+                          <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{u.farm_id ? (farms.find(f => f.id === u.farm_id)?.name || u.farm_id.slice(0, 8) + '...') : '—'}</TableCell>
+                          <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{u.is_active ? 'Yes' : 'No'}</TableCell>
+                          {(hasPermission('users:write') || hasPermission('users:impersonate')) && (
+                            <TableCell>
+                              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                              {hasPermission('users:impersonate') && (
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  disabled={!u.is_active}
+                                  onClick={async () => {
+                                    try {
+                                      const { data } = await api.post<TokenResponse & { impersonating: { id: string; email: string; full_name: string | null; role: string; permissions: string[] } }>(`/auth/impersonate/${u.id}`)
+                                      startImpersonating(data.access_token, data.impersonating)
+                                      window.location.href = '/'
+                                    } catch {
+                                      /* ignore */
+                                    }
+                                  }}
+                                >
+                                  View as
+                                </Button>
+                              )}
+                              {hasPermission('users:write') && (
+                                <Button
+                                  size="small"
+                                  disabled={u.id === user?.id}
+                                  onClick={() => openEditDialog(u)}
+                                >
+                                  Edit
+                                </Button>
+                              )}
+                              {hasPermission('users:write') && u.role?.name !== 'super_admin' && (
+                                <Button
+                                  size="small"
+                                  color="error"
+                                  disabled={u.id === user?.id}
+                                  onClick={() => handleDeleteUser(u.id)}
+                                >
+                                  Delete
+                                </Button>
+                              )}
+                              </Box>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </>
             )}
           </CardContent>
         </Card>
