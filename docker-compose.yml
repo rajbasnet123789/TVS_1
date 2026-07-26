@@ -204,7 +204,6 @@ services:
       context: .
       dockerfile: Dockerfile
       target: frontend
-    ports: ["3000:80"]
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
       VITE_FRIGATE_GO2RTC_URL: ${VITE_FRIGATE_GO2RTC_URL:-http://localhost:1984}
