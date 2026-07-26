@@ -100,7 +100,6 @@ services:
     ports:
       - "8971:8971"
       - "1984:1984"
-      - "8555:8555/udp"
     volumes:
       - ./frigate/config:/config
       - frigate_storage:/media/frigate
