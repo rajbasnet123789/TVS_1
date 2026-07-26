@@ -147,7 +147,6 @@ services:
       CAMERA_PROCESS_INTERVAL: ${CAMERA_PROCESS_INTERVAL:-3}
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,video,utility
-    ports: ["8000:8000"]
     volumes:
       - ./backend/app:/app/app
       - ./AI_MODEL:/app/AI_MODEL:ro
