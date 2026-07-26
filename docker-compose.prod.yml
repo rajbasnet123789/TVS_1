@@ -27,15 +27,9 @@ services:
       LOG_LEVEL: WARNING
       DATABASE_URL: postgresql+asyncpg://poultry:${POSTGRES_PASSWORD}@postgres:5432/poultry
 
-  caddy:
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      DOMAIN: ${DOMAIN}
-
   frontend:
-    ports: []
+    ports:
+      - "127.0.0.1:3001:80"
     environment:
       VITE_API_URL: https://${DOMAIN}
       VITE_FRIGATE_GO2RTC_URL: https://${DOMAIN}

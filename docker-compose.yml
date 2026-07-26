@@ -178,32 +178,12 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  caddy:
-    image: caddy:2-alpine
-    ports: ["80:80", "443:443"]
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-    environment:
-      DOMAIN: ${DOMAIN:-localhost}
-    depends_on: [frontend]
-    deploy:
-      resources:
-        limits:
-          cpus: '0.25'
-          memory: 64M
-    restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
   frontend:
     build:
       context: .
       dockerfile: Dockerfile
       target: frontend
+    ports: ["127.0.0.1:3001:80"]
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
       VITE_FRIGATE_GO2RTC_URL: ${VITE_FRIGATE_GO2RTC_URL:-http://localhost:1984}
@@ -260,6 +240,5 @@ volumes:
   redis_data:
   mosquitto_data:
   frigate_storage:
-  caddy_data:
   poultry_media:
   poultry_backups:
