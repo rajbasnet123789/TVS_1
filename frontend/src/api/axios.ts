@@ -21,6 +21,8 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+let refreshPromise: Promise<boolean> | null = null
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -29,18 +31,31 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !original._retry && !isAuthRoute) {
       original._retry = true
       try {
-        localStorage.removeItem('impersonation_token')
-        localStorage.removeItem('impersonation_info')
-        const { data } = await axios.post(`${API_BASE}/v1/auth/refresh`, {}, { withCredentials: true })
-        if (data.impersonation_token) {
-          localStorage.setItem('impersonation_token', data.impersonation_token)
+        if (!refreshPromise) {
+          refreshPromise = (async () => {
+            localStorage.removeItem('impersonation_token')
+            localStorage.removeItem('impersonation_info')
+            try {
+              const { data } = await axios.post(`${API_BASE}/v1/auth/refresh`, {}, { withCredentials: true })
+              if (data.impersonation_token) {
+                localStorage.setItem('impersonation_token', data.impersonation_token)
+              }
+              return true
+            } catch {
+              return false
+            }
+          })()
         }
-        const tokenToUse = localStorage.getItem('impersonation_token') || data.access_token
-        original.headers.Authorization = `Bearer ${tokenToUse}`
-        return api(original)
-      } catch {
-        localStorage.removeItem('impersonation_token')
-        localStorage.removeItem('impersonation_info')
+        const ok = await refreshPromise
+        if (ok) {
+          const tokenToUse = localStorage.getItem('impersonation_token')
+          if (tokenToUse) {
+            original.headers.Authorization = `Bearer ${tokenToUse}`
+          }
+          return api(original)
+        }
+      } finally {
+        refreshPromise = null
       }
     }
     return Promise.reject(error)
