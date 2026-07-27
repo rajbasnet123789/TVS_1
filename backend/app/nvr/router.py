@@ -24,6 +24,17 @@ class DiscoveredChannel(BaseModel):
     rtsp_url: str
 
 
+class ConnectNvrRequest(BaseModel):
+    device_name: str | None = None
+    group: str | None = None
+    login_type: str = "IP Address"
+    ip: str
+    port: int = 34567
+    username: str | None = "admin"
+    password: str | None = ""
+    protocol: str = "General"
+
+
 class RegisterCamerasRequest(BaseModel):
     cameras: list[DiscoveredChannel]
     farm_id: str
@@ -46,36 +57,107 @@ async def _resolve_camera(camera_id: str, db: AsyncSession, farm_id: str | None 
     return camera
 
 
+@router.post("/connect")
+async def connect_nvr(
+    data: ConnectNvrRequest,
+    user: User = Depends(require_permission("cameras:scan")),
+):
+    ip = data.ip.strip()
+    if not ip:
+        raise HTTPException(status_code=400, detail="IP address or domain is required")
+
+    port = data.port or 34567
+    username = data.username or "admin"
+    password = data.password or ""
+    protocol = data.protocol or "General"
+    auth_str = f"{username}:{password}@" if username else ""
+
+    channels: list[DiscoveredChannel] = []
+
+    # 1. Try Dahua / CGI protocol if Dahua selected or port is default
+    if protocol.lower() in ("dahua", "general"):
+        from app.nvr.client import DahuaNvrClient
+        client = DahuaNvrClient(host=ip, username=username, password=password, port=port if port in (80, 8080) else 80)
+        try:
+            ch_status = await client.get_channel_status()
+            for ch in ch_status:
+                idx = int(ch.get("index", 0))
+                name = ch.get("Name", f"Channel {idx}")
+                online = ch.get("Online", True)
+                rtsp_url = f"rtsp://{auth_str}{ip}:554/cam/realmonitor?channel={idx}&subtype=0"
+                channels.append(DiscoveredChannel(channel=idx, name=name, online=online, rtsp_url=rtsp_url))
+            await client.close()
+        except Exception as e:
+            logger.debug("Dahua CGI probe attempt skipped: %s", e)
+            await client.close()
+
+    # 2. If no channels returned from CGI probe, build default channel streams based on Protocol
+    if not channels:
+        num_channels = 16  # standard NVR 16 channels layout
+        if protocol.lower() == "hikvision":
+            for idx in range(1, num_channels + 1):
+                rtsp_url = f"rtsp://{auth_str}{ip}:554/Streaming/Channels/{idx}01"
+                channels.append(DiscoveredChannel(channel=idx, name=f"{data.device_name or ip} - Ch {idx}", online=True, rtsp_url=rtsp_url))
+        elif protocol.lower() == "uniview":
+            for idx in range(1, num_channels + 1):
+                rtsp_url = f"rtsp://{auth_str}{ip}:554/unicast/c{idx}/s0/live"
+                channels.append(DiscoveredChannel(channel=idx, name=f"{data.device_name or ip} - Ch {idx}", online=True, rtsp_url=rtsp_url))
+        elif protocol.lower() == "onvif":
+            for idx in range(1, num_channels + 1):
+                rtsp_url = f"rtsp://{auth_str}{ip}:554/onvif{idx}"
+                channels.append(DiscoveredChannel(channel=idx, name=f"ONVIF Ch {idx} ({ip})", online=True, rtsp_url=rtsp_url))
+        else:
+            # General / Default NVR RTSP pattern (Dahua/General RTSP)
+            rtsp_base_port = 554 if port in (34567, 80, 8080) else port
+            for idx in range(1, num_channels + 1):
+                rtsp_url = f"rtsp://{auth_str}{ip}:{rtsp_base_port}/cam/realmonitor?channel={idx}&subtype=0"
+                channels.append(DiscoveredChannel(channel=idx, name=f"{data.device_name or ip} - Ch {idx}", online=True, rtsp_url=rtsp_url))
+
+    return {
+        "device_name": data.device_name or ip,
+        "ip": ip,
+        "port": port,
+        "login_type": data.login_type,
+        "protocol": protocol,
+        "cameras": channels,
+    }
+
+
 @router.get("/discover")
 async def discover_nvr_cameras(
     user: User = Depends(require_permission("cameras:scan")),
 ):
     from app.nvr.client import get_nvr_client
     client = get_nvr_client()
-    if not client:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="NVR not configured. Set NVR_HOST, NVR_USERNAME, NVR_PASSWORD in .env"
-        )
-    try:
-        channels = await client.get_channel_status()
-    except Exception as e:
-        logger.error("NVR discovery failed: %s", e)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to connect to NVR: {e}"
-        )
+    if client:
+        try:
+            channels = await client.get_channel_status()
+            discovered = []
+            for ch in channels:
+                idx = int(ch.get("index", 0))
+                name = ch.get("name", f"Channel {idx}")
+                online = ch.get("Online", False)
+                rtsp_url = f"{client.rtsp_base}/cam/realmonitor?channel={idx}&subtype=0"
+                discovered.append(DiscoveredChannel(
+                    channel=idx, name=name, online=online, rtsp_url=rtsp_url
+                ))
+            return {"cameras": discovered, "nvr_host": client.base_url}
+        except Exception as e:
+            logger.warning("Configured NVR client discovery failed, falling back to local network scan: %s", e)
 
+    # Fallback to local network ONVIF WS-Discovery scan
+    from app.cameras.onvif import discover_onvif_devices
+    onvif_devices = await discover_onvif_devices(timeout=6)
     discovered = []
-    for ch in channels:
-        idx = int(ch.get("index", 0))
-        name = ch.get("name", f"Channel {idx}")
-        online = ch.get("Online", False)
-        rtsp_url = f"{client.rtsp_base}/cam/realmonitor?channel={idx}&subtype=0"
+    for idx, d in enumerate(onvif_devices, start=1):
+        ip = d.get("ip", "")
+        name = d.get("name", f"NVR / Camera {idx} ({ip})")
+        rtsp_url = f"rtsp://{ip}:554/cam/realmonitor?channel=1&subtype=0" if ip else d.get("xaddrs", "")
         discovered.append(DiscoveredChannel(
-            channel=idx, name=name, online=online, rtsp_url=rtsp_url
+            channel=idx, name=name, online=True, rtsp_url=rtsp_url
         ))
-    return {"cameras": discovered, "nvr_host": client.base_url}
+
+    return {"cameras": discovered, "nvr_host": "local_network"}
 
 
 @router.post("/register")
@@ -105,6 +187,7 @@ async def register_nvr_cameras(
             location=f"NVR Channel {cam.channel}",
             status="online" if cam.online else "offline",
             username=data.username,
+            password=data.password,
             enabled=True,
         )
         db.add(camera)

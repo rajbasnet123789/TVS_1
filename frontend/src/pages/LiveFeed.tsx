@@ -10,6 +10,7 @@ import { useCameras } from '../hooks/useCameras'
 import { CameraGrid } from '../components/CameraGrid'
 import { useAuth } from '../auth/AuthContext'
 import api from '../api/axios'
+import { AddDeviceModal } from '../components/AddDeviceModal'
 import type { DiscoveredDevice } from '../types'
 
 interface NvrChannel {
@@ -20,9 +21,10 @@ interface NvrChannel {
 }
 
 export default function LiveFeed() {
-  const { cameras, addCamera, scanNetwork, getScanStatus, getScanResults } = useCameras()
+  const { cameras, addCamera, refetchCameras, scanNetwork, getScanStatus, getScanResults } = useCameras()
   const { hasPermission, farms } = useAuth()
   const [open, setOpen] = useState(false)
+  const [addDeviceModalOpen, setAddDeviceModalOpen] = useState(false)
   const [form, setForm] = useState({ name: '', rtsp_url: '', location: '', zone: '', fps_target: 5, username: '', password: '' })
   const [addError, setAddError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -100,22 +102,11 @@ export default function LiveFeed() {
             {cameras.length > 0 ? `Real-time video feeds from ${cameras.length} camera${cameras.length !== 1 ? 's' : ''}` : 'No cameras configured yet'}
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1.5, width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'flex-start', sm: 'flex-end' } }}>
+        <Box sx={{ display: 'flex', gap: 1.5, width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'flex-start', sm: 'flex-end' }, flexWrap: 'wrap' }}>
           {hasPermission('cameras:scan') && (
-            <Button variant="outlined" startIcon={<DvrIcon />} onClick={async () => {
-              setNvrDialogOpen(true)
-              setNvrLoading(true)
-              setNvrError('')
-              setNvrChannels([])
-              setNvrSelected(new Set())
-              setNvrResult('')
-              try {
-                const resp = await api.get('/v1/nvr/discover')
-                setNvrChannels(resp.data.cameras || [])
-                setNvrSelected(new Set((resp.data.cameras || []).map((c: NvrChannel) => c.channel)))
-              } catch (e: any) { setNvrError(e?.response?.data?.detail || 'Failed to discover NVR cameras') }
-              finally { setNvrLoading(false) }
-            }}>NVR Scan</Button>
+            <Button variant="outlined" color="primary" startIcon={<DvrIcon />} onClick={() => setAddDeviceModalOpen(true)}>
+              NVR Auto Discover / Add Device
+            </Button>
           )}
           {hasPermission('cameras:scan') && (
             <Button variant="outlined" startIcon={<SearchIcon />} onClick={async () => {
@@ -141,7 +132,7 @@ export default function LiveFeed() {
                 }, 1500)
                 scanPollRef.current = poll
               } catch (e: any) { setScanning(false); setScanError(e?.response?.data?.detail || 'Failed to start scan') }
-            }}>Discover Cameras</Button>
+            }}>Discover ONVIF</Button>
           )}
           <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpen}>
             {isFirstCamera ? 'Get Started' : 'Add Camera'}
@@ -150,6 +141,13 @@ export default function LiveFeed() {
       </Box>
 
       <CameraGrid compact={false} />
+
+      {/* New NVR & Camera Device Modal (Matching user screenshot) */}
+      <AddDeviceModal
+        open={addDeviceModalOpen}
+        onClose={() => setAddDeviceModalOpen(false)}
+        onSuccess={refetchCameras}
+      />
 
       {/* NVR Discover Dialog */}
       <Dialog open={nvrDialogOpen} onClose={() => setNvrDialogOpen(false)} maxWidth="md" fullWidth>

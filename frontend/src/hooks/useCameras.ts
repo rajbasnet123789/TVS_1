@@ -108,6 +108,12 @@ export function useCameras() {
     return data
   }
 
+  const refetchCameras = () => {
+    currentFetchId += 1
+    activeFetchPromise = null
+    fetchCamerasGlobal(currentFetchId)
+  }
+
   return {
     cameras: state.cameras,
     loading: state.loading,
@@ -116,6 +122,7 @@ export function useCameras() {
     deleteCamera,
     scanNetwork,
     getScanStatus,
-    getScanResults
+    getScanResults,
+    refetchCameras,
   }
 }
