@@ -116,6 +116,8 @@ services:
       NVIDIA_DRIVER_CAPABILITIES: compute,video,utility
     ports:
       - "127.0.0.1:8700:8700"
+    volumes:
+      - ./AI_MODEL:/app/AI_MODEL:ro
     depends_on:
       postgres: {condition: service_healthy}
       influxdb: {condition: service_healthy}

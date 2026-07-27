@@ -15,10 +15,10 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY cv_engine/requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY cv_engine/ .
 
 RUN mkdir -p stream_cache
 
