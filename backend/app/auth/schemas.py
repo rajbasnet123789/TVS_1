@@ -48,6 +48,7 @@ class UserCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
+    full_name: str | None = None
     role_name: str | None = None
     farm_id: UUID | None = None
     is_active: bool | None = None

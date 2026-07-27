@@ -112,6 +112,7 @@ services:
       MQTT_PORT: 1883
       MQTT_USERNAME: ${MQTT_USERNAME}
       MQTT_PASSWORD: ${MQTT_PASSWORD}
+      CV_ENGINE_API_KEY: ${CV_ENGINE_API_KEY:-}
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,video,utility
     ports:
@@ -173,6 +174,7 @@ services:
       DB_ECHO: ${DB_ECHO:-false}
       COOKIES_SECURE: ${COOKIES_SECURE:-false}
       CAMERA_PROCESS_INTERVAL: ${CAMERA_PROCESS_INTERVAL:-3}
+      CV_ENGINE_API_KEY: ${CV_ENGINE_API_KEY:-}
     volumes:
       - poultry_media:/var/opt/poultry/media
     depends_on:

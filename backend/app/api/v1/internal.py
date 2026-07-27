@@ -1,6 +1,6 @@
 """Internal API endpoints for service-to-service communication (cv-engine)."""
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,15 +9,37 @@ from app.database import get_db
 from app.alerts.models import AlertRule, Alert
 from app.alerts.service import create_alert
 from app.alerts.schemas import AlertCreate
-from app.websocket.manager import manager
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/internal", tags=["internal"])
 
 
+def _require_internal_token(
+    x_internal_token: str | None = Header(None, alias="X-Internal-Token"),
+) -> None:
+    """Validate that requests to internal endpoints come from the cv-engine."""
+    configured_key = settings.cv_engine_api_key
+    if not configured_key:
+        # Key not configured — warn in dev, still allow (backwards compat)
+        logger.warning(
+            "CV_ENGINE_API_KEY is not set. Internal endpoints are unprotected. "
+            "Set CV_ENGINE_API_KEY in .env for production deployments."
+        )
+        return
+    if x_internal_token != configured_key:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid or missing internal service token.",
+        )
+
+
 @router.get("/cameras")
-async def list_active_cameras(db: AsyncSession = Depends(get_db)):
+async def list_active_cameras(
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_require_internal_token),
+):
     """Return all enabled cameras for cv-engine to process."""
     result = await db.execute(
         select(Camera).where(Camera.enabled == True)
@@ -43,7 +65,10 @@ async def list_active_cameras(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/alert-rules")
-async def list_active_alert_rules(db: AsyncSession = Depends(get_db)):
+async def list_active_alert_rules(
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_require_internal_token),
+):
     """Return enabled alert rules for cv-engine to evaluate."""
     result = await db.execute(select(AlertRule).where(AlertRule.enabled == True))
     rules = result.scalars().all()
@@ -65,7 +90,11 @@ async def list_active_alert_rules(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/alerts")
-async def create_alert_internal(data: AlertCreate, db: AsyncSession = Depends(get_db)):
+async def create_alert_internal(
+    data: AlertCreate,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_require_internal_token),
+):
     """Create an alert (called by cv-engine)."""
     alert = await create_alert(db, data, data.farm_id if hasattr(data, 'farm_id') else None)
     return {"alert_id": str(alert.id), "status": "created"}

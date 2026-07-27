@@ -11,7 +11,6 @@ from fastapi.responses import StreamingResponse
 from jose import JWTError, jwt
 
 from cv_engine import frame_store
-from cv_engine.alert_client import AlertEvaluator
 from cv_engine.camera_manager import CameraManager
 from cv_engine.config import settings
 from cv_engine.influx_writer import InfluxWriter
@@ -22,7 +21,6 @@ logger = logging.getLogger(__name__)
 
 _influx_writer: InfluxWriter | None = None
 _camera_manager: CameraManager | None = None
-_alert_evaluator: AlertEvaluator | None = None
 _detection_queue: Any = None
 
 
@@ -39,11 +37,15 @@ def _validate_token(token: str) -> dict | None:
 async def _sync_cameras_loop() -> None:
     backoff = 1.0
     max_backoff = 30.0
+    headers: dict[str, str] = {}
+    if settings.CV_ENGINE_API_KEY:
+        headers["X-Internal-Token"] = settings.CV_ENGINE_API_KEY
     while True:
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.get(
-                    f"{settings.BUSINESS_BACKEND_URL}/v1/internal/cameras"
+                    f"{settings.BUSINESS_BACKEND_URL}/v1/internal/cameras",
+                    headers=headers
                 )
                 resp.raise_for_status()
                 cameras = resp.json().get("cameras", [])
@@ -57,15 +59,13 @@ async def _sync_cameras_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _influx_writer, _camera_manager, _alert_evaluator, _detection_queue
+    global _influx_writer, _camera_manager, _detection_queue
 
     _detection_queue = multiprocessing.Queue(maxsize=5000)
     _influx_writer = InfluxWriter()
     _influx_writer.start()
 
     _camera_manager = CameraManager(_detection_queue)
-    _alert_evaluator = AlertEvaluator()
-    _alert_evaluator.start()
 
     sync_task = asyncio.create_task(_sync_cameras_loop())
     drain_task = asyncio.create_task(_drain_detection_queue())
@@ -75,7 +75,6 @@ async def lifespan(app: FastAPI):
     sync_task.cancel()
     drain_task.cancel()
     _camera_manager.stop_all()
-    _alert_evaluator.stop()
     _influx_writer.stop()
 
 

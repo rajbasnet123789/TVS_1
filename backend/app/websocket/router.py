@@ -7,8 +7,13 @@ router = APIRouter()
 
 
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, token: str | None = None):
-    token = token or websocket.cookies.get("access_token")
+async def websocket_endpoint(websocket: WebSocket):
+    # FastAPI does not auto-bind query params for WebSocket handlers the same
+    # way it does for HTTP routes — extract token explicitly.
+    token = (
+        websocket.query_params.get("token")
+        or websocket.cookies.get("access_token")
+    )
     if not token:
         await websocket.close(code=4001)
         return
@@ -46,3 +51,4 @@ async def websocket_endpoint(websocket: WebSocket, token: str | None = None):
         pass
     finally:
         manager.disconnect_all(websocket)
+

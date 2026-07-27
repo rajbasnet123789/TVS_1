@@ -12,8 +12,9 @@ services:
     ports: []
 
   mosquitto:
-    ports:
-      - "1883:1883"
+    # Do NOT expose MQTT port publicly in production — cv-engine reaches it
+    # via the internal Docker network.
+    ports: []
 
   backend:
     ports: []
@@ -21,7 +22,15 @@ services:
       CORS_ORIGINS: https://${DOMAIN}
       COOKIES_SECURE: "true"
       LOG_LEVEL: WARNING
+      DEBUG: "false"
+      ENVIRONMENT: production
+      DB_ECHO: "false"
       DATABASE_URL: postgresql+asyncpg://poultry:${POSTGRES_PASSWORD}@postgres:5432/poultry
+      CV_ENGINE_API_KEY: ${CV_ENGINE_API_KEY}
+
+  cv-engine:
+    environment:
+      CV_ENGINE_API_KEY: ${CV_ENGINE_API_KEY}
 
   frontend:
     ports:
@@ -33,3 +42,4 @@ services:
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD}
       INFLUX_TOKEN: ${INFLUX_TOKEN}
+

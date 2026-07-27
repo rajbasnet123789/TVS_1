@@ -331,6 +331,8 @@ async def update_user(
         target.farm_id = data.farm_id or None
     if data.is_active is not None:
         target.is_active = data.is_active
+    if data.full_name is not None:
+        target.full_name = data.full_name
 
     await db.commit()
     await db.refresh(target)

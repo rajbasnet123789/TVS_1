@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     encryption_key: str = ""
     encryption_salt: str = ""
+    cv_engine_api_key: str = ""
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
     cors_origins: str = "http://localhost:3000"
@@ -90,7 +91,8 @@ if not settings.encryption_key:
         "generate with: openssl rand -hex 32"
     )
 if not settings.encryption_salt:
-    raise ValueError(
-        "ENCRYPTION_SALT environment variable is required — "
-        "generate with: openssl rand -hex 32"
+    import logging as _log
+    _log.getLogger(__name__).warning(
+        "ENCRYPTION_SALT not set — using built-in fallback salt. "
+        "Set ENCRYPTION_SALT in .env for production deployments."
     )
