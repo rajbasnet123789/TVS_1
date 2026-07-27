@@ -38,7 +38,7 @@ def _worker_main(
 
     while not stop_event.is_set():
         raw = frame_store.latest_bytes(camera_id, annotated=False)
-        if raw is None:
+        if not raw:
             time.sleep(0.1)
             continue
 

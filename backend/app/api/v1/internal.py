@@ -54,10 +54,10 @@ async def list_active_alert_rules(db: AsyncSession = Depends(get_db)):
                 "name": rule.name,
                 "metric": rule.metric,
                 "threshold": rule.threshold,
-                "window_minutes": rule.window_minutes,
+                "window_minutes": getattr(rule, "duration_minutes", 30),
                 "severity": rule.severity,
                 "farm_id": str(rule.farm_id) if rule.farm_id else None,
-                "camera_id": str(rule.camera_id) if rule.camera_id else None,
+                "camera_id": None,
             }
             for rule in rules
         ]
