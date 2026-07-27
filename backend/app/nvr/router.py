@@ -180,6 +180,7 @@ async def register_nvr_cameras(
         if existing.scalar_one_or_none():
             continue
 
+        from app.security import encrypt_camera_password
         camera = Camera(
             farm_id=farm_uuid,
             name=cam.name,
@@ -187,7 +188,7 @@ async def register_nvr_cameras(
             location=f"NVR Channel {cam.channel}",
             status="online" if cam.online else "offline",
             username=data.username,
-            password=data.password,
+            password_hash=encrypt_camera_password(data.password) if data.password else None,
             enabled=True,
         )
         db.add(camera)
