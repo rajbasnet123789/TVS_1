@@ -5,12 +5,12 @@ from uuid import UUID
 from pydantic import BaseModel, EmailStr, field_validator
 
 
-_PASSWORD_RE = re.compile(r"^.{10,}$")
+_PASSWORD_RE = re.compile(r"^.{6,}$")
 
 
 def _validate_password(v: str) -> str:
-    if len(v) < 10:
-        raise ValueError("Password must be at least 10 characters long")
+    if len(v) < 6:
+        raise ValueError("Password must be at least 6 characters long")
     
     errors = []
     if not re.search(r"[A-Z]", v):
