@@ -1,6 +1,7 @@
 import logging
 import multiprocessing
 import time
+import typing
 
 from cv_engine.camera_worker import _worker_main
 from cv_engine import frame_store
@@ -9,10 +10,10 @@ logger = logging.getLogger(__name__)
 
 
 class CameraManager:
-    def __init__(self, detection_queue: multiprocessing.Queue):
+    def __init__(self, detection_queue: typing.Any):
         self._detection_queue = detection_queue
-        self._workers: dict[str, multiprocessing.Process] = {}
-        self._stop_events: dict[str, multiprocessing.Event] = {}
+        self._workers: dict[str, typing.Any] = {}
+        self._stop_events: dict[str, typing.Any] = {}
 
     def sync_cameras(self, cameras: list[dict]) -> None:
         desired_ids = {c["id"] for c in cameras}

@@ -16,12 +16,14 @@ from cv_engine.camera_manager import CameraManager
 from cv_engine.config import settings
 from cv_engine.influx_writer import InfluxWriter
 
+from typing import Any
+
 logger = logging.getLogger(__name__)
 
 _influx_writer: InfluxWriter | None = None
 _camera_manager: CameraManager | None = None
 _alert_evaluator: AlertEvaluator | None = None
-_detection_queue: multiprocessing.Queue | None = None
+_detection_queue: Any = None
 
 
 def _validate_token(token: str) -> dict | None:

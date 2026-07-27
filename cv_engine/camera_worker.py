@@ -1,6 +1,7 @@
 import logging
 import multiprocessing
 import time
+import typing
 
 import cv2
 import numpy as np
@@ -18,8 +19,8 @@ def _worker_main(
     farm_id: str,
     rtsp_url: str,
     roi_polygon: list[list[float]] | None,
-    detection_queue: multiprocessing.Queue,
-    stop_event: multiprocessing.Event,
+    detection_queue: typing.Any,
+    stop_event: typing.Any,
 ) -> None:
     logging.basicConfig(level=logging.INFO)
     logger.info("CameraWorker started for %s", camera_id)
