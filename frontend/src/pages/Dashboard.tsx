@@ -642,8 +642,6 @@ export default function Dashboard() {
                         <CameraFeed
                           id={cam.id}
                           name={`${cam.name} (${farms.find((f: any) => f.id === cam.farm_id)?.name || 'Unknown'})`}
-                          hlsUrl={cam.hls_url}
-                          rtspUrl={cam.rtsp_url}
                           status={cam.status}
                           compact
                         />
@@ -808,8 +806,6 @@ export default function Dashboard() {
                           <CameraFeed
                             id={cam.id}
                             name={cam.name}
-                            hlsUrl={cam.hls_url}
-                            rtspUrl={cam.rtsp_url}
                             status={cam.status}
                             compact
                           />

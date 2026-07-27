@@ -15,10 +15,6 @@ services:
     ports:
       - "1883:1883"
 
-  frigate:
-    ports:
-      - "8971:8971"  # Frigate web UI (admin/VPN only)
-
   backend:
     ports: []
     environment:
@@ -32,7 +28,6 @@ services:
       - "127.0.0.1:3001:80"
     environment:
       VITE_API_URL: https://${DOMAIN}
-      VITE_FRIGATE_GO2RTC_URL: https://${DOMAIN}
 
   backup:
     environment:

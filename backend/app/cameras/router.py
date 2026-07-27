@@ -73,7 +73,6 @@ async def get_cameras(
     result = []
     for cam in cameras:
         cam_out = CameraOut.model_validate(cam)
-        cam_out.hls_url = f"/api/frigate/hls/{cam.name}/index.m3u8"
         result.append(cam_out)
     return result
 
@@ -148,7 +147,6 @@ async def get_camera_detail(
     if farm_id and str(camera.farm_id) != farm_id and user.role.name != "super_admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     cam_out = CameraOut.model_validate(camera)
-    cam_out.hls_url = f"/api/frigate/hls/{camera.name}/index.m3u8"
     return cam_out
 
 
@@ -163,7 +161,6 @@ async def add_camera(
 ):
     camera = await create_camera(db, data, farm_id=farm_id)
     cam_out = CameraOut.model_validate(camera)
-    cam_out.hls_url = f"/api/frigate/hls/{camera.name}/index.m3u8"
     return cam_out
 
 
@@ -187,7 +184,6 @@ async def edit_camera(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera not found")
 
     cam_out = CameraOut.model_validate(camera)
-    cam_out.hls_url = f"/api/frigate/hls/{camera.name}/index.m3u8"
     return cam_out
 
 
@@ -212,7 +208,6 @@ async def assign_camera_coop(
     await db.refresh(camera)
 
     cam_out = CameraOut.model_validate(camera)
-    cam_out.hls_url = f"/api/frigate/hls/{camera.name}/index.m3u8"
     return cam_out
 
 

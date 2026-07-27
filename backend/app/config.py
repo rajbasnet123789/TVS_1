@@ -24,8 +24,6 @@ class Settings(BaseSettings):
     influx_org: str = "poultry"
     influx_bucket: str = "detections"
     media_root: str = "/var/opt/poultry/media"
-    frigate_api_url: str = "http://frigate:5000"
-    frigate_go2rtc_url: str = "http://frigate:1984"
     mqtt_broker: str = "mosquitto"
     mqtt_port: int = 1883
     mqtt_username: str = ""
@@ -39,8 +37,6 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000"
     log_level: str = "WARNING"
     db_echo: bool = False
-    model_health_path: str = ""
-    model_health_checksum_sha256: str = ""
     camera_process_interval: int = 3
     cookies_secure: bool = False
     postgres_password: str = ""

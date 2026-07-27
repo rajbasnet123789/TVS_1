@@ -17,7 +17,6 @@ router = APIRouter(prefix="/coops", tags=["coops"])
 
 def _enrich_camera(camera: Camera) -> CameraOut:
     cam_out = CameraOut.model_validate(camera)
-    cam_out.hls_url = f"/api/frigate/hls/{camera.name}/index.m3u8"
     return cam_out
 
 

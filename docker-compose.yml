@@ -94,33 +94,60 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  frigate:
-    image: ghcr.io/blakeblackshear/frigate:stable-tensorrt
-    shm_size: "256mb"
-    ports:
-      - "8971:8971"
-      - "1984:1984"
-    volumes:
-      - ./frigate/config:/config
-      - frigate_storage:/media/frigate
-      - /etc/localtime:/etc/localtime:ro
+  cv-engine:
+    build:
+      context: .
+      dockerfile: cv_engine/Dockerfile
+    runtime: nvidia
+    env_file: .env
     environment:
-      FRIGATE_RTSP_PASSWORD: ${FRIGATE_RTSP_PASSWORD}
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: ${INFLUX_TOKEN}
+      INFLUX_ORG: poultry
+      INFLUX_BUCKET: detections
+      BUSINESS_BACKEND_URL: http://backend:8000
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: HS256
+      MQTT_BROKER: mosquitto
+      MQTT_PORT: 1883
       MQTT_USERNAME: ${MQTT_USERNAME}
       MQTT_PASSWORD: ${MQTT_PASSWORD}
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,video,utility
+    ports:
+      - "127.0.0.1:8700:8700"
+    depends_on:
+      postgres: {condition: service_healthy}
+      influxdb: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8700/health')\" || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     deploy:
       resources:
         limits:
-          cpus: '2'
-          memory: 2G
+          cpus: '4'
+          memory: 4G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   backend:
     build:
       context: .
       dockerfile: Dockerfile
       target: backend
-    runtime: nvidia
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://poultry:${POSTGRES_PASSWORD}@postgres:5432/poultry
@@ -130,8 +157,6 @@ services:
       INFLUX_ORG: poultry
       INFLUX_BUCKET: detections
       MEDIA_ROOT: /var/opt/poultry/media
-      FRIGATE_API_URL: http://frigate:5000
-      FRIGATE_GO2RTC_URL: http://frigate:1984
       MQTT_BROKER: mosquitto
       MQTT_PORT: 1883
       SENTRY_DSN: ${SENTRY_DSN:-}
@@ -145,11 +170,7 @@ services:
       DB_ECHO: ${DB_ECHO:-false}
       COOKIES_SECURE: ${COOKIES_SECURE:-false}
       CAMERA_PROCESS_INTERVAL: ${CAMERA_PROCESS_INTERVAL:-3}
-      NVIDIA_VISIBLE_DEVICES: all
-      NVIDIA_DRIVER_CAPABILITIES: compute,video,utility
     volumes:
-      - ./backend/app:/app/app
-      - ./AI_MODEL:/app/AI_MODEL:ro
       - poultry_media:/var/opt/poultry/media
     depends_on:
       postgres: {condition: service_healthy}
@@ -165,12 +186,7 @@ services:
       resources:
         limits:
           cpus: '4'
-          memory: 8G
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+          memory: 2G
     restart: unless-stopped
     logging:
       driver: json-file
@@ -186,7 +202,6 @@ services:
     ports: ["127.0.0.1:3001:80"]
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
-      VITE_FRIGATE_GO2RTC_URL: ${VITE_FRIGATE_GO2RTC_URL:-http://localhost:1984}
     depends_on: [backend]
     deploy:
       resources:
@@ -239,6 +254,5 @@ volumes:
   influxdb_data:
   redis_data:
   mosquitto_data:
-  frigate_storage:
   poultry_media:
   poultry_backups:

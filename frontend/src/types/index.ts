@@ -38,7 +38,6 @@ export interface Camera {
   resolution_width: number
   resolution_height: number
   enabled: boolean
-  hls_url: string | null
   username: string | null
   password: string | null
   coop_id: string | null

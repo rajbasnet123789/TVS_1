@@ -76,7 +76,6 @@ class CameraOut(BaseModel):
     coop_id: UUID | None = None
     snapshot_url: str | None = None
     roi: list[list[float]] | None = None
-    hls_url: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

@@ -26,8 +26,6 @@ export function CameraGrid({ compact = true }: { compact?: boolean }) {
           <CameraFeed
             id={cam.id}
             name={cam.name}
-            hlsUrl={cam.hls_url}
-            rtspUrl={cam.rtsp_url}
             status={cam.status}
             compact={compact}
           />

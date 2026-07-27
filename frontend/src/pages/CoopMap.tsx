@@ -186,8 +186,6 @@ export default function CoopMap() {
               <CameraFeed
                 id={feedCamera.id}
                 name={feedCamera.name}
-                hlsUrl={feedCamera.hls_url}
-                rtspUrl={feedCamera.rtsp_url}
                 status={feedCamera.status}
               />
             </DialogContent>

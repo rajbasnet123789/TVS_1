@@ -66,53 +66,6 @@ async def test_camera_history_wrong_farm_returns_404(client, db_session):
 
 
 @pytest.mark.asyncio
-async def test_mcmt_identities_returns_global_results(client, db_session):
-    from app.auth.service import seed_roles, seed_super_admin
-    from app.config import settings
-
-    await seed_roles(db_session)
-    await seed_super_admin(db_session)
-    await db_session.commit()
-
-    login = await client.post("/v1/auth/login", json={
-        "email": "admin@poultry.farm",
-        "password": settings.default_admin_password,
-    })
-    token = login.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
-
-    resp = await client.get("/v1/detection/mcmt/identities", headers=headers)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert "total_identities" in data
-    assert "active_identities" in data
-
-
-@pytest.mark.asyncio
-async def test_mcmt_gallery_stats_returns(client, db_session):
-    from app.auth.service import seed_roles, seed_super_admin
-    from app.config import settings
-
-    await seed_roles(db_session)
-    await seed_super_admin(db_session)
-    await db_session.commit()
-
-    login = await client.post("/v1/auth/login", json={
-        "email": "admin@poultry.farm",
-        "password": settings.default_admin_password,
-    })
-    token = login.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
-
-    resp = await client.get("/v1/detection/mcmt/gallery/stats", headers=headers)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert "total_embeddings" in data
-    assert "embedding_dim" in data
-    assert "active_count" in data
-
-
-@pytest.mark.asyncio
 async def test_alert_acknowledge_wrong_farm_returns_404(client, db_session):
     from app.auth.service import seed_roles, seed_super_admin
     from app.config import settings
