@@ -1,4 +1,5 @@
 import { useState, lazy, Suspense } from 'react'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 import { Box, Toolbar, Typography, CircularProgress } from '@mui/material'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
@@ -108,21 +109,23 @@ export function ResponsiveShell() {
         <ImpersonationBanner />
         <Box sx={{ p: { xs: 2, md: 4 } }}>
         <Toolbar sx={{ display: { xs: 'block', md: 'none' } }} />
-        <Suspense fallback={<PageLoading />}>
-          <Routes>
-            <Route path="/" element={<ProtectedRoute permission="dashboard:read"><Dashboard /></ProtectedRoute>} />
-            <Route path="/coop-map" element={<ProtectedRoute permission="dashboard:read"><CoopMap /></ProtectedRoute>} />
-            <Route path="/live" element={<ProtectedRoute permission="live:read"><LiveFeed /></ProtectedRoute>} />
-            <Route path="/analytics" element={<ProtectedRoute permission="analytics:read"><Analytics /></ProtectedRoute>} />
-            <Route path="/alerts" element={<ProtectedRoute permission="dashboard:read"><Alerts /></ProtectedRoute>} />
-            <Route path="/reports" element={<ProtectedRoute permission="dashboard:read"><Reports /></ProtectedRoute>} />
-            <Route path="/profit-loss" element={<ProtectedRoute permission="dashboard:read"><ProfitLoss /></ProtectedRoute>} />
-            <Route path="/media" element={<ProtectedRoute permission="cameras:read"><MediaGallery /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute permission="settings:read"><Settings /></ProtectedRoute>} />
-            <Route path="/admin/farms" element={<ProtectedRoute permission="system:audit"><AdminFarms /></ProtectedRoute>} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
+        <ErrorBoundary>
+          <Suspense fallback={<PageLoading />}>
+            <Routes>
+              <Route path="/" element={<ProtectedRoute permission="dashboard:read"><Dashboard /></ProtectedRoute>} />
+              <Route path="/coop-map" element={<ProtectedRoute permission="dashboard:read"><CoopMap /></ProtectedRoute>} />
+              <Route path="/live" element={<ProtectedRoute permission="live:read"><LiveFeed /></ProtectedRoute>} />
+              <Route path="/analytics" element={<ProtectedRoute permission="analytics:read"><Analytics /></ProtectedRoute>} />
+              <Route path="/alerts" element={<ProtectedRoute permission="dashboard:read"><Alerts /></ProtectedRoute>} />
+              <Route path="/reports" element={<ProtectedRoute permission="dashboard:read"><Reports /></ProtectedRoute>} />
+              <Route path="/profit-loss" element={<ProtectedRoute permission="dashboard:read"><ProfitLoss /></ProtectedRoute>} />
+              <Route path="/media" element={<ProtectedRoute permission="cameras:read"><MediaGallery /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute permission="settings:read"><Settings /></ProtectedRoute>} />
+              <Route path="/admin/farms" element={<ProtectedRoute permission="system:audit"><AdminFarms /></ProtectedRoute>} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
         </Box>
       </Box>
       <PWAPrompt />

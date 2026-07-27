@@ -48,6 +48,7 @@ export function useWebSocket(handlers?: Record<string, MessageHandler>) {
     }
 
     ws.onclose = () => {
+      if (!handlersRef.current) return
       const delay = Math.min(1000 * 2 ** attemptRef.current, 30000)
       const jitter = delay * (0.5 + Math.random() * 0.5)
       attemptRef.current += 1

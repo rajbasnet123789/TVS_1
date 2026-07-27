@@ -6,6 +6,7 @@ const api = axios.create({
   baseURL: `${API_BASE}/v1`,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
+  timeout: 15000,
 })
 
 api.interceptors.request.use((config) => {
@@ -38,9 +39,8 @@ api.interceptors.response.use(
         original.headers.Authorization = `Bearer ${tokenToUse}`
         return api(original)
       } catch {
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login'
-        }
+        localStorage.removeItem('impersonation_token')
+        localStorage.removeItem('impersonation_info')
       }
     }
     return Promise.reject(error)
