@@ -109,6 +109,19 @@ export default defineConfig({
       },
     })
   ],
+  build: {
+    target: 'esnext',
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-mui': ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled'],
+          'vendor-recharts': ['recharts'],
+          'vendor-react': ['react', 'react-dom', 'react-router-dom', 'axios'],
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',
