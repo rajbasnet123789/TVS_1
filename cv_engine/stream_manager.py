@@ -10,6 +10,20 @@ from cv_engine import frame_store
 logger = logging.getLogger(__name__)
 
 
+def normalize_url(url: str) -> tuple[str, bool]:
+    if not url:
+        return url, False
+    if url.startswith("dvrip://"):
+        import re
+        match = re.match(r"dvrip://(?:([^:]+):([^@]+)@)?([^:/]+)(?::(\d+))?/(\d+)", url)
+        if match:
+            user, pwd, host, port, ch = match.groups()
+            ch_num = int(ch) + 1
+            auth_str = f"{user}:{pwd}@" if user else ""
+            return f"rtsp://{auth_str}{host}:554/cam/realmonitor?channel={ch_num}&subtype=0", True
+    return url, url.startswith("rtsp://")
+
+
 class RtspCameraStream:
     def __init__(self, camera_id: str, rtsp_url: str):
         self.camera_id = camera_id
@@ -72,15 +86,17 @@ class RtspCameraStream:
         logger.info("Capture loop exited for camera %s", self.camera_id)
 
     def _run_ffmpeg(self) -> None:
-        cmd = [
-            "ffmpeg",
-            "-rtsp_transport", "tcp",
-            "-i", self.rtsp_url,
+        target_url, is_rtsp = normalize_url(self.rtsp_url)
+        cmd = ["ffmpeg"]
+        if is_rtsp:
+            cmd.extend(["-rtsp_transport", "tcp"])
+        cmd.extend([
+            "-i", target_url,
             "-f", "mjpeg",
             "-q:v", "3",
             "-r", "25",
             "pipe:1",
-        ]
+        ])
         self._process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
