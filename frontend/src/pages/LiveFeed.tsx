@@ -80,7 +80,7 @@ export default function LiveFeed() {
     setNvrResult('')
     try {
       const selected = nvrChannels.filter(c => nvrSelected.has(c.channel))
-      const resp = await api.post('/v1/nvr/register', {
+      const resp = await api.post('/nvr/register', {
         cameras: selected,
         farm_id: farms[0].id,
       })

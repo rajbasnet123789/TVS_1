@@ -69,7 +69,7 @@ export function AddDeviceModal({ open, onClose, onSuccess }: AddDeviceModalProps
     setSelectedChannels(new Set())
 
     try {
-      const resp = await api.post('/v1/nvr/connect', {
+      const resp = await api.post('/nvr/connect', {
         device_name: deviceName || ip,
         group: selectedGroup,
         login_type: loginType,
@@ -94,7 +94,7 @@ export function AddDeviceModal({ open, onClose, onSuccess }: AddDeviceModalProps
     setError('')
     setSuccessMsg('')
     try {
-      const resp = await api.get('/v1/nvr/discover')
+      const resp = await api.get('/nvr/discover')
       const channels: DiscoveredChannel[] = resp.data.cameras || []
       setDiscoveredChannels(channels)
       setSelectedChannels(new Set(channels.map((c) => c.channel)))
@@ -118,7 +118,7 @@ export function AddDeviceModal({ open, onClose, onSuccess }: AddDeviceModalProps
       }
 
       const selectedList = discoveredChannels.filter((c) => selectedChannels.has(c.channel))
-      const resp = await api.post('/v1/nvr/register', {
+      const resp = await api.post('/nvr/register', {
         cameras: selectedList,
         farm_id: targetFarmId,
         username: userName || undefined,
