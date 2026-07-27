@@ -91,36 +91,42 @@ export default function Dashboard() {
   // Poll active stats and camera status
   useEffect(() => {
     let inFlight = false
-    const fetchStats = () => {
+    const fetchStats = async () => {
       if (inFlight) return
       inFlight = true
-      Promise.all([
-        api.get('/cameras').catch(() => ({ data: [] })),
-        api.get('/chickens/detected', { params: { start: '-1h', end: 'now()' } }).catch(() => ({ data: [] })),
-        api.get('/coops').catch(() => ({ data: [] })),
-      ]).then(async ([camerasRes, detectedRes, coopsRes]) => {
-        const camerasList = camerasRes.data
-        const detected = detectedRes.data
+      try {
+        const [camerasRes, detectedRes, coopsRes] = await Promise.all([
+          api.get('/cameras').catch(() => ({ data: [] })),
+          api.get('/chickens/detected', { params: { start: '-1h', end: 'now()' } }).catch(() => ({ data: [] })),
+          api.get('/coops').catch(() => ({ data: [] })),
+        ])
+
+        const camerasList = Array.isArray(camerasRes?.data) ? camerasRes.data : []
+        const detected = Array.isArray(detectedRes?.data) ? detectedRes.data : []
+        const coopsList = Array.isArray(coopsRes?.data) ? coopsRes.data : []
+
         setCameras(camerasList)
-        setCoops(coopsRes.data)
+        setCoops(coopsList)
         setDetectedChickens(detected)
 
-        const onlineCamerasList = camerasList.filter((c: any) => c.status === 'online')
+        const onlineCamerasList = camerasList.filter((c: any) => c && c.status === 'online')
 
         let totalDetections = 0
         let uniqueChickensCount = 0
 
-        await Promise.all(
-          onlineCamerasList.slice(0, 5).map(async (c: any) => {
-            try {
-              const { data } = await api.get(`/cameras/${c.id}/detection/stats`)
-              totalDetections += data.total_detections || 0
-              uniqueChickensCount += data.unique_chickens || 0
-            } catch (err) { /* ignore */ }
-          })
-        )
+        if (onlineCamerasList.length > 0) {
+          await Promise.all(
+            onlineCamerasList.slice(0, 5).map(async (c: any) => {
+              try {
+                const { data } = await api.get(`/cameras/${c.id}/detection/stats`)
+                totalDetections += data?.total_detections || 0
+                uniqueChickensCount += data?.unique_chickens || 0
+              } catch (err) { /* ignore */ }
+            })
+          )
+        }
 
-        const alerts = camerasList.filter((c: any) => c.status === 'offline').length
+        const alerts = camerasList.filter((c: any) => c && c.status === 'offline').length
         const healthyPct = Math.min(100, Math.round(
           (onlineCamerasList.length / Math.max(camerasList.length, 1)) * 60 +
           (uniqueChickensCount > 0 ? 40 : 0)
@@ -133,12 +139,19 @@ export default function Dashboard() {
           healthyPct,
           alerts,
         })
-      }).catch(() => {}).finally(() => { inFlight = false; setLoading(false) })
+      } catch (err) {
+        console.error('Dashboard stats error:', err)
+      } finally {
+        inFlight = false
+        setLoading(false)
+      }
     }
 
     fetchStats()
+    const safetyTimer = setTimeout(() => setLoading(false), 2500)
     const interval = setInterval(fetchStats, 15000)
     return () => {
+      clearTimeout(safetyTimer)
       clearInterval(interval)
       Object.values(activeCoopTimeouts.current).forEach(t => window.clearTimeout(t))
     }

@@ -26,7 +26,7 @@ async function fetchCamerasGlobal(fetchId: number) {
     try {
       const { data } = await api.get('/cameras')
       if (fetchId === currentFetchId) {
-        updateGlobalState(data, false)
+        updateGlobalState(Array.isArray(data) ? data : [], false)
       }
     } catch {
       if (fetchId === currentFetchId) {

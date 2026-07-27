@@ -25,8 +25,12 @@ export function useWebSocket(handlers?: Record<string, MessageHandler>) {
       wsUrl = `${protocol}//${window.location.host}/ws`
     }
     const farmId = currentFarm?.id || localStorage.getItem('selected_farm_id')
-    if (farmId) {
-      wsUrl += `?farm_id=${encodeURIComponent(farmId)}`
+    const impToken = localStorage.getItem('impersonation_token')
+    const queryParams: string[] = []
+    if (farmId) queryParams.push(`farm_id=${encodeURIComponent(farmId)}`)
+    if (impToken) queryParams.push(`token=${encodeURIComponent(impToken)}`)
+    if (queryParams.length > 0) {
+      wsUrl += `?${queryParams.join('&')}`
     }
     const ws = new WebSocket(wsUrl)
 
