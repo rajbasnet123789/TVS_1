@@ -106,8 +106,12 @@ async def connect_nvr(
             for idx in range(1, num_channels + 1):
                 rtsp_url = f"rtsp://{auth_str}{ip}:554/onvif{idx}"
                 channels.append(DiscoveredChannel(channel=idx, name=f"ONVIF Ch {idx} ({ip})", online=True, rtsp_url=rtsp_url))
+        elif protocol.lower() in ("dvrip", "general"):
+            for ch in range(16):
+                stream_url = f"dvrip://{auth_str}{ip}:{port}/{ch}"
+                channels.append(DiscoveredChannel(channel=ch + 1, name=f"{data.device_name or ip} - Ch {ch + 1}", online=True, rtsp_url=stream_url))
         else:
-            # General / Default NVR RTSP pattern (Dahua/General RTSP)
+            # Fallback NVR RTSP pattern
             rtsp_base_port = 554 if port in (34567, 80, 8080) else port
             for idx in range(1, num_channels + 1):
                 rtsp_url = f"rtsp://{auth_str}{ip}:{rtsp_base_port}/cam/realmonitor?channel={idx}&subtype=0"

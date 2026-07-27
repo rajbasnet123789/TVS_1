@@ -255,7 +255,8 @@ export function AddDeviceModal({ open, onClose, onSuccess }: AddDeviceModalProps
               <Typography sx={{ width: 120, fontWeight: 600, fontSize: '0.875rem', color: '#334155' }}>Protocol:</Typography>
               <FormControl size="small" fullWidth>
                 <Select value={protocol} onChange={(e) => setProtocol(e.target.value)}>
-                  <MenuItem value="General">General</MenuItem>
+                  <MenuItem value="General">General (DVR-IP / RTSP)</MenuItem>
+                  <MenuItem value="DVR-IP">DVR-IP (Port 34567)</MenuItem>
                   <MenuItem value="Dahua">Dahua</MenuItem>
                   <MenuItem value="Hikvision">Hikvision</MenuItem>
                   <MenuItem value="ONVIF">ONVIF</MenuItem>
