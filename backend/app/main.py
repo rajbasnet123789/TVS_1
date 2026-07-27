@@ -112,12 +112,23 @@ async def lifespan(app: FastAPI):
     root = get_media_root()
     logger.info("Media root: %s", root)
 
+    if settings.nvr_host:
+        from app.nvr.client import init_nvr_client
+        try:
+            await init_nvr_client(settings.nvr_host, settings.nvr_username, settings.nvr_password)
+            logger.info("NVR client initialized: %s", settings.nvr_host)
+        except Exception as e:
+            logger.warning("NVR client init failed: %s", e)
+
     logger.info("Database initialized and seeded")
     yield
     logger.info("Shutting down...")
     from app.cameras.router import cancel_active_scan
     await cancel_active_scan()
     logger.info("Active ONVIF scans cancelled")
+    from app.nvr.client import close_nvr_client
+    await close_nvr_client()
+    logger.info("NVR client closed")
     await alert_evaluator.stop()
     logger.info("Alert rule evaluator stopped")
     from app.auth.service import close_redis
