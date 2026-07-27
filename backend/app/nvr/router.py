@@ -9,6 +9,7 @@ from app.auth.deps import require_permission, get_farm_id
 from app.auth.models import User
 from app.cameras.models import Camera
 from app.database import get_db
+from app.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 

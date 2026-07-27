@@ -13,7 +13,6 @@ from app.health.router import router as health_router
 from app.media.router import router as media_router
 from app.nvr.router import router as nvr_router
 from app.websocket.router import router as ws_router
-from app.api.v1.intruders import router as intruders_router
 from app.api.v1.internal import router as internal_router
 
 router = APIRouter(prefix="/v1")
@@ -30,7 +29,6 @@ router.include_router(media_router)
 router.include_router(nvr_router)
 router.include_router(detection_router)
 router.include_router(detection_global_router)
-router.include_router(intruders_router)
 router.include_router(internal_router)
 
 websocket_router = ws_router
