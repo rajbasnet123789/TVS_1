@@ -18,46 +18,16 @@ import json
 
 def _register_go2rtc_stream(camera_id: str, rtsp_url: str) -> str:
     """Register camera stream source in go2rtc via REST API and return go2rtc RTSP re-stream URL."""
-    # Method 1: POST /api/streams?name=...&src=...
     try:
-        query = urllib.parse.urlencode({"name": camera_id, "src": rtsp_url})
-        url = f"{settings.GO2RTC_API_URL}/api/streams?{query}"
-        req = urllib.request.Request(url, method="POST")
-        with urllib.request.urlopen(req, timeout=3) as resp:
-            if resp.status in (200, 201):
-                logger.debug("Registered stream %s in go2rtc (POST query)", camera_id)
-                return f"{settings.GO2RTC_RTSP_URL}/{camera_id}"
-    except Exception:
-        pass
-
-    # Method 2: PUT /api/streams?name=...&src=...
-    try:
+        # PUT /api/streams?name=...&src=... is go2rtc's idempotent stream upsert API
         query = urllib.parse.urlencode({"name": camera_id, "src": rtsp_url})
         url = f"{settings.GO2RTC_API_URL}/api/streams?{query}"
         req = urllib.request.Request(url, method="PUT")
         with urllib.request.urlopen(req, timeout=3) as resp:
             if resp.status in (200, 201):
-                logger.debug("Registered stream %s in go2rtc (PUT query)", camera_id)
-                return f"{settings.GO2RTC_RTSP_URL}/{camera_id}"
-    except Exception:
-        pass
-
-    # Method 3: Form-urlencoded POST /api/streams
-    try:
-        url = f"{settings.GO2RTC_API_URL}/api/streams"
-        data = urllib.parse.urlencode({"name": camera_id, "src": rtsp_url}).encode("utf-8")
-        req = urllib.request.Request(
-            url,
-            data=data,
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=3) as resp:
-            if resp.status in (200, 201):
-                logger.debug("Registered stream %s in go2rtc (Form POST)", camera_id)
                 return f"{settings.GO2RTC_RTSP_URL}/{camera_id}"
     except Exception as e:
-        logger.warning("Failed to register stream %s in go2rtc (%s), falling back to direct RTSP", camera_id, e)
+        logger.debug("go2rtc stream upsert for %s: %s", camera_id, e)
 
     return rtsp_url
 
