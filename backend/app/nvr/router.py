@@ -166,14 +166,10 @@ async def register_nvr_cameras(
         ch_num = int(cam.channel)
         dvrip_ch = max(0, ch_num - 1)
 
-        # Always build exact DVRIP URL with correct channel offset for TVS NVR
-        if "192.168" in cam.rtsp_url or "34567" in cam.rtsp_url or "/user=" in cam.rtsp_url:
-            parsed_host = "192.168.31.169"
-            if "@" in cam.rtsp_url:
-                try:
-                    parsed_host = cam.rtsp_url.split("@")[1].split(":")[0].split("/")[0]
-                except Exception:
-                    pass
+        if cam.rtsp_url.startswith("dvrip://"):
+            import urllib.parse as _urlparse
+            parsed = _urlparse.urlparse(cam.rtsp_url)
+            parsed_host = parsed.hostname or ""
             rtsp_url = f"dvrip://{username}:{password}@{parsed_host}:34567?channel={dvrip_ch}&subtype=0"
         else:
             rtsp_url = cam.rtsp_url

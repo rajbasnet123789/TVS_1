@@ -15,18 +15,6 @@ def normalize_url(url: str) -> tuple[str, bool]:
         return url, False
     if "8554" in url or "localhost" in url or "127.0.0.1" in url or "go2rtc" in url:
         return url, True
-    if url.startswith("dvrip://"):
-        import urllib.parse
-        parsed = urllib.parse.urlparse(url)
-        ch_idx = 0
-        if "channel=" in url:
-            params = urllib.parse.parse_qs(parsed.query)
-            ch_idx = int(params.get("channel", ["0"])[0])
-        else:
-            parts = parsed.path.strip("/").split("/")
-            if parts and parts[0].isdigit():
-                ch_idx = int(parts[0])
-        return f"rtsp://localhost:8554/ch{ch_idx}", True
     return url, url.startswith("rtsp://")
 
 
