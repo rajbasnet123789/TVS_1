@@ -228,3 +228,21 @@ async def remove_camera(
     deleted = await delete_camera(db, camera_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera not found")
+
+
+@router.post("/fix-channels")
+async def fix_camera_channels(
+    db: AsyncSession = Depends(get_db),
+):
+    import re
+    result = await db.execute(select(Camera).order_by(Camera.created_at.asc()))
+    cameras = result.scalars().all()
+    updated = []
+    for idx, cam in enumerate(cameras, start=1):
+        m = re.search(r"(?:Ch|Channel)\s*(\d+)", cam.name, re.IGNORECASE)
+        ch = int(m.group(1)) if m else idx
+        new_url = f"rtsp://apap:3tr65t@192.168.31.169:554/user=apap&password=3tr65t&channel={ch}&stream=0.sdp"
+        cam.rtsp_url = new_url
+        updated.append({"id": str(cam.id), "name": cam.name, "channel": ch, "rtsp_url": new_url})
+    await db.commit()
+    return {"status": "ok", "updated_count": len(updated), "cameras": updated}
