@@ -141,14 +141,16 @@ async def xmeye_scan(timeout: float = 5.0):
 async def websocket_endpoint(
     websocket: WebSocket,
     camera_id: str,
-    token: str = Query(...),
 ):
-    payload = _validate_token(token)
+    token = websocket.query_params.get("token")
+    payload = _validate_token(token) if token else None
     if payload is None:
+        logger.warning("WS connection rejected for camera %s (token present: %s)", camera_id, bool(token))
         await websocket.close(code=4001, reason="Invalid or expired token")
         return
 
     await websocket.accept()
+    logger.info("WS connection accepted for camera %s", camera_id)
     poll_interval = settings.WS_POLL_INTERVAL_MS / 1000.0
     last_frame_mtime = 0.0
     last_meta_mtime = 0.0
