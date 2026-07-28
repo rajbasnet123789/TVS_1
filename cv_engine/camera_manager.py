@@ -46,6 +46,21 @@ def _format_go2rtc_src(rtsp_url: str) -> list[str]:
 def _register_go2rtc_stream(camera_id: str, rtsp_url: str) -> str:
     """Register camera stream source in go2rtc via REST API and return go2rtc RTSP re-stream URL."""
     sources = _format_go2rtc_src(rtsp_url)
+    primary_src = sources[0] if sources else rtsp_url
+
+    # Method 1: PUT /api/streams?name=...&src=...
+    try:
+        query = urllib.parse.urlencode({"name": camera_id, "src": primary_src})
+        url = f"{settings.GO2RTC_API_URL}/api/streams?{query}"
+        req = urllib.request.Request(url, method="PUT")
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            if resp.status in (200, 201):
+                logger.info("Registered stream %s in go2rtc (PUT query: %s)", camera_id, primary_src)
+                return f"{settings.GO2RTC_RTSP_URL}/{camera_id}"
+    except Exception as e:
+        logger.debug("go2rtc PUT query failed for %s: %s", camera_id, e)
+
+    # Method 2: POST /api/streams with JSON payload {"name": camera_id, "src": sources}
     try:
         url = f"{settings.GO2RTC_API_URL}/api/streams"
         payload = json.dumps({"name": camera_id, "src": sources}).encode("utf-8")
@@ -53,16 +68,16 @@ def _register_go2rtc_stream(camera_id: str, rtsp_url: str) -> str:
             url,
             data=payload,
             headers={"Content-Type": "application/json"},
-            method="PUT",
+            method="POST",
         )
         with urllib.request.urlopen(req, timeout=3) as resp:
             if resp.status in (200, 201):
-                logger.info("Registered stream %s in go2rtc (%d sources)", camera_id, len(sources))
+                logger.info("Registered stream %s in go2rtc (POST json)", camera_id)
                 return f"{settings.GO2RTC_RTSP_URL}/{camera_id}"
     except Exception as e:
-        logger.debug("go2rtc stream upsert for %s: %s", camera_id, e)
+        logger.warning("Failed to register stream %s in go2rtc: %s", camera_id, e)
 
-    return rtsp_url
+    return f"{settings.GO2RTC_RTSP_URL}/{camera_id}"
 
 
 class CameraManager:
