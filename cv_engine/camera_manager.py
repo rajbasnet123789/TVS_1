@@ -62,6 +62,19 @@ def _register_go2rtc_stream(camera_id: str, rtsp_url: str) -> str:
     if "8554" in rtsp_url or "localhost" in rtsp_url or "127.0.0.1" in rtsp_url:
         return rtsp_url
 
+    if rtsp_url.startswith("dvrip://"):
+        import urllib.parse
+        parsed = urllib.parse.urlparse(rtsp_url)
+        ch_idx = 0
+        if "channel=" in rtsp_url:
+            params = urllib.parse.parse_qs(parsed.query)
+            ch_idx = int(params.get("channel", ["0"])[0])
+        else:
+            parts = parsed.path.strip("/").split("/")
+            if parts and parts[0].isdigit():
+                ch_idx = int(parts[0])
+        return f"rtsp://localhost:8554/ch{ch_idx}"
+
     sources = _format_go2rtc_src(rtsp_url)
     primary_src = sources[0] if sources else rtsp_url
 
