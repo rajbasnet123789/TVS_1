@@ -18,9 +18,11 @@ def normalize_url(url: str) -> tuple[str, bool]:
         match = re.match(r"dvrip://(?:([^:]+):([^@]+)@)?([^:/]+)(?::(\d+))?/(\d+)", url)
         if match:
             user, pwd, host, port, ch = match.groups()
-            ch_num = int(ch) + 1
-            auth_str = f"{user}:{pwd}@" if user else ""
-            return f"rtsp://{auth_str}{host}:554/cam/realmonitor?channel={ch_num}&subtype=0", True
+            ch_num = int(ch)
+            user_str = user or "admin"
+            pwd_str = pwd or ""
+            auth_str = f"{user_str}:{pwd_str}@" if user_str else ""
+            return f"rtsp://{auth_str}{host}:554/user={user_str}&password={pwd_str}&channel={ch_num}&stream=0.sdp", True
     return url, url.startswith("rtsp://")
 
 
@@ -100,7 +102,7 @@ class RtspCameraStream:
         self._process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
             bufsize=0,
         )
 
@@ -127,12 +129,21 @@ class RtspCameraStream:
                     buffer = buffer[eoi_idx + 2:]
                     frame_store.publish(self.camera_id, frame)
         finally:
-            if self._process and self._process.poll() is None:
-                try:
-                    self._process.terminate()
-                    self._process.wait(timeout=3)
-                except Exception:
-                    pass
+            if self._process:
+                err = ""
+                if self._process.stderr:
+                    try:
+                        err = self._process.stderr.read().decode("utf-8", errors="replace")[-300:]
+                    except Exception:
+                        pass
+                if err and not self._stop_event.is_set():
+                    logger.warning("FFmpeg process log for %s: %s", self.camera_id, err.strip())
+                if self._process.poll() is None:
+                    try:
+                        self._process.terminate()
+                        self._process.wait(timeout=3)
+                    except Exception:
+                        pass
 
     def cleanup(self) -> None:
         self.stop()
