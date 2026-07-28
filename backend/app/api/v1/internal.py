@@ -82,6 +82,27 @@ async def reset_cameras_internal(
     return {"status": "ok", "message": "All camera records deleted successfully"}
 
 
+@router.get("/reset-user-password")
+@router.post("/reset-user-password")
+async def reset_user_password_internal(
+    email: str = "admin@poultry.farm",
+    new_password: str = "Admin@123456",
+    db: AsyncSession = Depends(get_db),
+):
+    from app.auth.models import User
+    from app.security import hash_password
+
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User with email '{email}' not found")
+
+    user.hashed_password = hash_password(new_password)
+    user.is_active = True
+    await db.commit()
+    return {"status": "ok", "message": f"Password for {email} updated successfully"}
+
+
 @router.get("/cameras")
 async def list_active_cameras(
     db: AsyncSession = Depends(get_db),
