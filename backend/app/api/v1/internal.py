@@ -51,21 +51,21 @@ async def fix_camera_channels_internal(
     await db.execute(delete(Camera))
     await db.commit()
 
-    # Recreate exactly 5 clean active camera entries (Channels 0..4)
+    # Recreate exactly 5 clean active camera entries pointing directly to go2rtc streams (ch0..ch4)
     cameras = []
     for idx in range(5):
         ch = idx + 1
-        dvrip_url = f"dvrip://apap:3tr65t@192.168.31.169:34567?channel={idx}&subtype=0"
+        stream_url = f"rtsp://localhost:8554/ch{idx}"
         cam = Camera(
             farm_id=farm_id,
             name=f"192.168.31.169 - Ch {ch}",
-            rtsp_url=dvrip_url,
+            rtsp_url=stream_url,
             location=f"NVR Channel {ch}",
             status="online",
             enabled=True,
         )
         db.add(cam)
-        cameras.append({"name": f"192.168.31.169 - Ch {ch}", "dvrip_channel": idx, "rtsp_url": dvrip_url})
+        cameras.append({"name": f"192.168.31.169 - Ch {ch}", "dvrip_channel": idx, "rtsp_url": stream_url})
 
     await db.commit()
     return {"status": "ok", "created_count": len(cameras), "cameras": cameras}

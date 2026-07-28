@@ -59,6 +59,9 @@ def _format_go2rtc_src(rtsp_url: str) -> list[str]:
 
 def _register_go2rtc_stream(camera_id: str, rtsp_url: str) -> str:
     """Register camera stream source in go2rtc via REST API and return go2rtc RTSP re-stream URL."""
+    if "8554" in rtsp_url or "localhost" in rtsp_url or "127.0.0.1" in rtsp_url:
+        return rtsp_url
+
     sources = _format_go2rtc_src(rtsp_url)
     primary_src = sources[0] if sources else rtsp_url
 
