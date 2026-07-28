@@ -337,8 +337,21 @@ export function CameraFeed({ id, name, status, compact = false }: CameraFeedProp
         <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
           <canvas
             ref={canvasRef}
-            style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block' }}
+            style={{ width: '100%', height: '100%', objectFit: 'fill', display: streamStatus === 'live' ? 'block' : 'none' }}
           />
+          {streamStatus !== 'live' && (
+            <img
+              src={`/cvws/${id}`}
+              alt={name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              onError={(e) => {
+                // Retry image fetch after 1s if frame buffer is initializing
+                setTimeout(() => {
+                  (e.target as HTMLImageElement).src = `/cvws/${id}?t=${Date.now()}`
+                }, 1000)
+              }}
+            />
+          )}
         </Box>
       )}
 
