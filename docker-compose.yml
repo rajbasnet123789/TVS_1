@@ -111,7 +111,7 @@ services:
       INFLUX_TOKEN: ${INFLUX_TOKEN}
       INFLUX_ORG: poultry
       INFLUX_BUCKET: detections
-      BUSINESS_BACKEND_URL: http://localhost:8000
+      BUSINESS_BACKEND_URL: http://localhost:8001
       JWT_SECRET: ${JWT_SECRET}
       JWT_ALGORITHM: HS256
       MQTT_BROKER: localhost
@@ -182,9 +182,9 @@ services:
       CAMERA_PROCESS_INTERVAL: ${CAMERA_PROCESS_INTERVAL:-3}
       CV_ENGINE_API_KEY: ${CV_ENGINE_API_KEY:-}
     # Expose backend on host loopback so cv-engine (network_mode:host) can call
-    # it at http://localhost:8000 (BUSINESS_BACKEND_URL).
+    # it at http://localhost:8001 (avoids conflict with other projects on :8000).
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8001:8000"
     volumes:
       - poultry_media:/var/opt/poultry/media
     depends_on:
