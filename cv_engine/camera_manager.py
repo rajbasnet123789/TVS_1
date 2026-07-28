@@ -13,19 +13,42 @@ from cv_engine.config import settings
 logger = logging.getLogger(__name__)
 
 
+import json
+
+
 def _register_go2rtc_stream(camera_id: str, rtsp_url: str) -> str:
     """Register camera stream source in go2rtc via REST API and return go2rtc RTSP re-stream URL."""
+    # Method 1: PUT /api/streams with JSON payload {"name": camera_id, "src": [rtsp_url]}
+    try:
+        url = f"{settings.GO2RTC_API_URL}/api/streams"
+        payload = json.dumps({"name": camera_id, "src": [rtsp_url]}).encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="PUT",
+        )
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            if resp.status in (200, 201):
+                logger.info("Registered stream %s in go2rtc (JSON PUT)", camera_id)
+                return f"{settings.GO2RTC_RTSP_URL}/{camera_id}"
+    except Exception as e:
+        logger.debug("go2rtc JSON PUT failed: %s, trying query PUT...", e)
+
+    # Method 2: PUT /api/streams?src=...&name=...
     try:
         query = urllib.parse.urlencode({"name": camera_id, "src": rtsp_url})
         url = f"{settings.GO2RTC_API_URL}/api/streams?{query}"
-        req = urllib.request.Request(url, method="POST")
+        req = urllib.request.Request(url, method="PUT")
         with urllib.request.urlopen(req, timeout=3) as resp:
-            if resp.status == 200:
-                logger.info("Registered stream %s in go2rtc", camera_id)
+            if resp.status in (200, 201):
+                logger.info("Registered stream %s in go2rtc (Query PUT)", camera_id)
                 return f"{settings.GO2RTC_RTSP_URL}/{camera_id}"
     except Exception as e:
         logger.warning("Failed to register stream %s in go2rtc (%s), falling back to direct RTSP", camera_id, e)
+
     return rtsp_url
+
 
 
 class CameraManager:
