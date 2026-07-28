@@ -341,11 +341,11 @@ export function CameraFeed({ id, name, status, compact = false }: CameraFeedProp
           />
           {streamStatus !== 'live' && (
             <img
-              src={`/cvws/${id}`}
+              src={`/mjpeg/${id}`}
               alt={name}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block' }}
               onError={(e) => {
-                // Retry image fetch after 1s if frame buffer is initializing
+                // If MJPEG stream buffer is initializing, fallback to /cvws/{id} single JPEG frame
                 setTimeout(() => {
                   (e.target as HTMLImageElement).src = `/cvws/${id}?t=${Date.now()}`
                 }, 1000)
