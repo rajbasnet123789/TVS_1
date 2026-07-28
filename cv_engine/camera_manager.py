@@ -17,15 +17,14 @@ import json
 
 
 def _format_go2rtc_src(rtsp_url: str) -> list[str]:
-    """Format source URLs for go2rtc ingestion using native TVS DVRIP format (dvrip://user:pass@host:34567/channel)."""
+    """Format comprehensive producer URL fallback list for go2rtc ingestion."""
     try:
         parsed = urllib.parse.urlparse(rtsp_url)
         user = parsed.username or "admin"
         password = parsed.password or ""
         host = parsed.hostname or "127.0.0.1"
-        port = parsed.port or 34567
 
-        # Extract channel index (0-indexed: 0, 1, 2, 3, 4...)
+        # Extract 0-indexed channel (0, 1, 2, 3, 4...)
         dvrip_ch = 0
         if rtsp_url.startswith("dvrip://"):
             parts = parsed.path.strip("/").split("/")
@@ -37,18 +36,23 @@ def _format_go2rtc_src(rtsp_url: str) -> list[str]:
         elif "channel=" in rtsp_url:
             params = urllib.parse.parse_qs(parsed.query)
             ch_val = int(params.get("channel", ["1"])[0])
-            dvrip_ch = max(0, ch_val - 1)
+            dvrip_ch = max(0, ch_val - 1) if "realmonitor" not in rtsp_url else ch_val
         elif "/ch" in parsed.path:
             import re
             m = re.search(r"ch0*(\d+)", parsed.path)
             if m:
                 dvrip_ch = max(0, int(m.group(1)) - 1)
 
-        # Native TVS NVR DVRIP format: dvrip://user:pass@host:34567/{channel}
-        dvrip_url_path = f"dvrip://{user}:{password}@{host}:{port}/{dvrip_ch}"
-        dvrip_url_query = f"dvrip://{user}:{password}@{host}:{port}?channel={dvrip_ch}&subtype=0"
+        rtsp_ch = dvrip_ch + 1
 
-        return [dvrip_url_path, dvrip_url_query, rtsp_url]
+        # Comprehensive Multi-Producer Fallback List
+        p1_dvrip_path = f"dvrip://{user}:{password}@{host}:34567/{dvrip_ch}"
+        p2_dvrip_query = f"dvrip://{user}:{password}@{host}:34567?channel={dvrip_ch}&subtype=0"
+        p3_rtsp_realmonitor = f"ffmpeg:rtsp://{user}:{password}@{host}:554/cam/realmonitor?channel={dvrip_ch}&subtype=0#video=copy#transport=tcp"
+        p4_rtsp_fmt_a = f"ffmpeg:rtsp://{user}:{password}@{host}:554/user={user}&password={password}&channel={rtsp_ch}&stream=0.sdp#video=copy#transport=tcp"
+        p5_rtsp_fmt_b = f"ffmpeg:rtsp://{user}:{password}@{host}:554/ch{rtsp_ch:02d}/0#video=copy#transport=tcp"
+
+        return [p1_dvrip_path, p2_dvrip_query, p3_rtsp_realmonitor, p4_rtsp_fmt_a, p5_rtsp_fmt_b, rtsp_url]
     except Exception:
         return [rtsp_url]
 
