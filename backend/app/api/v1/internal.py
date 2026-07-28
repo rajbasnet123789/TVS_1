@@ -55,6 +55,17 @@ async def fix_camera_channels_internal(
     return {"status": "ok", "updated_count": len(updated), "cameras": updated}
 
 
+@router.get("/reset-cameras")
+@router.post("/reset-cameras")
+async def reset_cameras_internal(
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import delete
+    result = await db.execute(delete(Camera))
+    await db.commit()
+    return {"status": "ok", "message": "All camera records deleted successfully"}
+
+
 @router.get("/cameras")
 async def list_active_cameras(
     db: AsyncSession = Depends(get_db),
