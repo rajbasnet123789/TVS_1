@@ -150,7 +150,7 @@ async def websocket_endpoint(
         return
 
     await websocket.accept()
-    logger.info("WS connection accepted for camera %s", camera_id)
+    logger.info("🟢 WEBSOCKET CONNECTED for camera %s", camera_id)
     poll_interval = settings.WS_POLL_INTERVAL_MS / 1000.0
     last_frame_mtime = 0.0
     last_meta_mtime = 0.0
@@ -174,7 +174,7 @@ async def websocket_endpoint(
 
             await asyncio.sleep(poll_interval)
     except WebSocketDisconnect:
-        pass
+        logger.info("🔴 WEBSOCKET DISCONNECTED for camera %s", camera_id)
     except Exception as e:
         logger.error("WebSocket error for %s: %s", camera_id, e)
     finally:
@@ -188,13 +188,14 @@ async def websocket_endpoint(
 async def cvws_http_fallback(camera_id: str):
     """
     HTTP GET endpoint for /cvws/{camera_id}.
-    Returns the latest JPEG frame for the camera. Serves as fallback for HTTP clients
-    or browsers initiating stream requests.
+    Returns the latest JPEG frame for the camera.
     """
     frame = frame_store.latest_bytes(camera_id, annotated=True)
     if frame:
+        logger.debug("HTTP GET frame served for camera %s (%d bytes)", camera_id, len(frame))
         return Response(content=frame, media_type="image/jpeg")
     return Response(content=b"", media_type="image/jpeg", status_code=204)
+
 
 
 @app.get("/mjpeg/{camera_id}")
