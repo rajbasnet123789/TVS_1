@@ -1,9 +1,9 @@
-# go2rtc configuration file for TVS_1 poultry monitoring system
+# go2rtc configuration file for TVS NVR system
 api:
   listen: ":1984"
 
 rtsp:
-  listen: ":8554"
+  listen: ":554"
 
 log:
   level: info

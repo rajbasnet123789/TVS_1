@@ -74,62 +74,31 @@ async def connect_nvr(
 
     channels: list[DiscoveredChannel] = []
 
-    # 1. Try DVRIP TCP login first if port is 34567 or protocol is General/DVR-IP/XMEye
-    if port == 34567 or protocol.lower() in ("dvrip", "xmeye", "general"):
-        from app.xmeye.client import dvrip_login, DVRIPAuthError, build_all_rtsp_urls
-        try:
-            resp = await dvrip_login(ip=ip, port=port, username=username, password=password)
-            ch_num = int(resp.get("ChannelNum") or resp.get("ExtraChannel") or 16)
-            for idx in range(1, ch_num + 1):
-                urls = build_all_rtsp_urls(host=ip, username=username, password=password, channel=idx, rtsp_port=554)
-                channels.append(DiscoveredChannel(
-                    channel=idx,
-                    name=f"{data.device_name or ip} - Ch {idx}",
-                    online=True,
-                    rtsp_url=urls["main_stream_format_a"],
-                ))
-        except DVRIPAuthError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        except Exception as e:
-            logger.debug("DVRIP probe skipped: %s", e)
-
-    # 2. Try Dahua / CGI protocol if no channels yet and protocol is Dahua or General
-    if not channels and protocol.lower() in ("dahua", "general"):
-        from app.nvr.client import DahuaNvrClient
-        client = DahuaNvrClient(host=ip, username=username, password=password, port=port if port in (80, 8080) else 80)
-        try:
-            ch_status = await client.get_channel_status()
-            for ch in ch_status:
-                idx = int(ch.get("index", 0))
-                name = ch.get("Name", f"Channel {idx}")
-                online = ch.get("Online", True)
-                rtsp_url = f"rtsp://{auth_str}{ip}:554/cam/realmonitor?channel={idx}&subtype=0"
-                channels.append(DiscoveredChannel(channel=idx, name=name, online=online, rtsp_url=rtsp_url))
-            await client.close()
-        except Exception as e:
-            logger.debug("Dahua CGI probe attempt skipped: %s", e)
-            await client.close()
-
-    # 3. Fallback: build default channel streams based on Protocol
-    if not channels:
-        num_channels = 16  # standard NVR 16 channels layout
-        if protocol.lower() == "hikvision":
-            for idx in range(1, num_channels + 1):
-                rtsp_url = f"rtsp://{auth_str}{ip}:554/Streaming/Channels/{idx}01"
-                channels.append(DiscoveredChannel(channel=idx, name=f"{data.device_name or ip} - Ch {idx}", online=True, rtsp_url=rtsp_url))
-        elif protocol.lower() == "uniview":
-            for idx in range(1, num_channels + 1):
-                rtsp_url = f"rtsp://{auth_str}{ip}:554/unicast/c{idx}/s0/live"
-                channels.append(DiscoveredChannel(channel=idx, name=f"{data.device_name or ip} - Ch {idx}", online=True, rtsp_url=rtsp_url))
-        elif protocol.lower() == "onvif":
-            for idx in range(1, num_channels + 1):
-                rtsp_url = f"rtsp://{auth_str}{ip}:554/onvif{idx}"
-                channels.append(DiscoveredChannel(channel=idx, name=f"ONVIF Ch {idx} ({ip})", online=True, rtsp_url=rtsp_url))
-        else:
-            # Default XMEye / General RTSP format
-            for idx in range(1, num_channels + 1):
-                stream_url = f"rtsp://{auth_str}{ip}:554/user={username}&password={password}&channel={idx}&stream=0.sdp"
-                channels.append(DiscoveredChannel(channel=idx, name=f"{data.device_name or ip} - Ch {idx}", online=True, rtsp_url=stream_url))
+    # DVRIP TCP login to TVS NVR (SofiaHash auth, cmd=1000)
+    from app.xmeye.client import dvrip_login, DVRIPAuthError, build_all_rtsp_urls
+    try:
+        resp = await dvrip_login(ip=ip, port=port, username=username, password=password)
+        ch_num = int(resp.get("ChannelNum") or resp.get("ExtraChannel") or 16)
+        for idx in range(1, ch_num + 1):
+            urls = build_all_rtsp_urls(host=ip, username=username, password=password, channel=idx, rtsp_port=554)
+            channels.append(DiscoveredChannel(
+                channel=idx,
+                name=f"{data.device_name or ip} - Ch {idx}",
+                online=True,
+                rtsp_url=urls["main_stream_format_a"],
+            ))
+    except DVRIPAuthError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.warning("DVRIP login skipped for %s: %s, fallback to default channels", ip, e)
+        for idx in range(1, 17):
+            stream_url = f"rtsp://{auth_str}{ip}:554/user={username}&password={password}&channel={idx}&stream=0.sdp"
+            channels.append(DiscoveredChannel(
+                channel=idx,
+                name=f"{data.device_name or ip} - Ch {idx}",
+                online=True,
+                rtsp_url=stream_url,
+            ))
 
     return {
         "device_name": data.device_name or ip,
