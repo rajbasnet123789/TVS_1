@@ -99,24 +99,29 @@ services:
       context: .
       dockerfile: cv_engine/Dockerfile
     runtime: nvidia
+    # network_mode: host gives cv-engine the host's full network stack,
+    # including Tailscale routes and LAN routes to cameras (e.g. 192.168.31.x).
+    # Without this, Docker bridge NAT blocks Tailscale-routed subnets.
+    network_mode: host
     env_file: .env
     environment:
-      INFLUX_URL: http://influxdb:8086
+      # Use localhost because host-mode containers reach other containers via
+      # the host loopback (127.0.0.1) rather than Docker DNS names.
+      INFLUX_URL: http://localhost:8086
       INFLUX_TOKEN: ${INFLUX_TOKEN}
       INFLUX_ORG: poultry
       INFLUX_BUCKET: detections
-      BUSINESS_BACKEND_URL: http://backend:8000
+      BUSINESS_BACKEND_URL: http://localhost:8000
       JWT_SECRET: ${JWT_SECRET}
       JWT_ALGORITHM: HS256
-      MQTT_BROKER: mosquitto
+      MQTT_BROKER: localhost
       MQTT_PORT: 1883
       MQTT_USERNAME: ${MQTT_USERNAME}
       MQTT_PASSWORD: ${MQTT_PASSWORD}
       CV_ENGINE_API_KEY: ${CV_ENGINE_API_KEY:-}
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,video,utility
-    ports:
-      - "127.0.0.1:8700:8700"
+    # ports: not needed with network_mode: host — cv-engine binds directly on host port 8700
     volumes:
       - ./AI_MODEL:/app/AI_MODEL:ro
     depends_on:
@@ -147,6 +152,7 @@ services:
         max-size: "10m"
         max-file: "3"
 
+
   backend:
     build:
       context: .
@@ -175,6 +181,10 @@ services:
       COOKIES_SECURE: ${COOKIES_SECURE:-false}
       CAMERA_PROCESS_INTERVAL: ${CAMERA_PROCESS_INTERVAL:-3}
       CV_ENGINE_API_KEY: ${CV_ENGINE_API_KEY:-}
+    # Expose backend on host loopback so cv-engine (network_mode:host) can call
+    # it at http://localhost:8000 (BUSINESS_BACKEND_URL).
+    ports:
+      - "127.0.0.1:8000:8000"
     volumes:
       - poultry_media:/var/opt/poultry/media
     depends_on:
@@ -205,6 +215,10 @@ services:
       dockerfile: Dockerfile
       target: frontend
     ports: ["127.0.0.1:3001:80"]
+    # host.docker.internal is only auto-defined on Mac/Windows Docker Desktop.
+    # On Linux (production server), we must declare it explicitly.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
     depends_on: [backend]
