@@ -55,8 +55,13 @@ def latest_bytes(camera_id: str, annotated: bool = False) -> bytes | None:
     lock = _get_lock(camera_id)
     with lock:
         path = _annotated_path(camera_id) if annotated else _raw_path(camera_id)
-        if not path.exists():
-            return None
+        if not path.exists() or path.stat().st_size == 0:
+            if annotated:
+                path = _raw_path(camera_id)
+                if not path.exists() or path.stat().st_size == 0:
+                    return None
+            else:
+                return None
         return path.read_bytes()
 
 
@@ -65,7 +70,9 @@ def latest_mtime(camera_id: str, annotated: bool = False) -> float:
     with lock:
         path = _annotated_path(camera_id) if annotated else _raw_path(camera_id)
         if not path.exists():
-            return 0.0
+            path = _raw_path(camera_id)
+            if not path.exists():
+                return 0.0
         return path.stat().st_mtime
 
 
