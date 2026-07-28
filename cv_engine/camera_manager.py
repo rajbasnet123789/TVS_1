@@ -17,40 +17,30 @@ import json
 
 
 def _format_go2rtc_src(rtsp_url: str) -> list[str]:
-    """Format source URLs for go2rtc ingestion using robust RTSP TCP formats."""
+    """Format source URLs for go2rtc ingestion — user specified realmonitor format."""
     try:
         parsed = urllib.parse.urlparse(rtsp_url)
         user = parsed.username or "admin"
         password = parsed.password or ""
         host = parsed.hostname or "127.0.0.1"
 
-        if rtsp_url.startswith("dvrip://"):
+        if "channel=" in rtsp_url:
             params = urllib.parse.parse_qs(parsed.query)
-            dvrip_ch = int(params.get("channel", ["0"])[0])
-            rtsp_ch = dvrip_ch + 1
-        elif "channel=" in rtsp_url:
-            params = urllib.parse.parse_qs(parsed.query)
-            rtsp_ch = int(params.get("channel", ["1"])[0])
-            dvrip_ch = max(0, rtsp_ch - 1)
+            ch_val = int(params.get("channel", ["0"])[0])
+            dvrip_ch = ch_val if rtsp_url.startswith("dvrip://") or "realmonitor" in rtsp_url else max(0, ch_val - 1)
         elif "/ch" in parsed.path:
             import re
             m = re.search(r"ch0*(\d+)", parsed.path)
-            rtsp_ch = int(m.group(1)) if m else 1
-            dvrip_ch = max(0, rtsp_ch - 1)
+            dvrip_ch = max(0, (int(m.group(1)) if m else 1) - 1)
         else:
-            rtsp_ch = 1
             dvrip_ch = 0
 
-        # Format B (ch0N/0) — newer TVS/XMEye firmware over TCP
-        rtsp_fmt_b = f"ffmpeg:rtsp://{user}:{password}@{host}:554/ch{rtsp_ch:02d}/0#video=copy#transport=tcp"
-        # Format A (user=...&channel=N) — legacy TVS/XMEye firmware over TCP
-        rtsp_fmt_a = f"ffmpeg:rtsp://{user}:{password}@{host}:554/user={user}&password={password}&channel={rtsp_ch}&stream=0.sdp#video=copy#transport=tcp"
-        # Native RTSP direct
-        direct_fmt_b = f"rtsp://{user}:{password}@{host}:554/ch{rtsp_ch:02d}/0"
-        direct_fmt_a = f"rtsp://{user}:{password}@{host}:554/user={user}&password={password}&channel={rtsp_ch}&stream=0.sdp"
+        # Exact user requested format: /cam/realmonitor?channel=N&subtype=0
+        realmonitor_url = f"rtsp://{user}:{password}@{host}:554/cam/realmonitor?channel={dvrip_ch}&subtype=0"
+        ffmpeg_realmonitor = f"ffmpeg:{realmonitor_url}#video=copy#transport=tcp"
         dvrip_fallback = f"dvrip://{user}:{password}@{host}:34567?channel={dvrip_ch}&subtype=0"
 
-        return [rtsp_fmt_b, rtsp_fmt_a, direct_fmt_b, direct_fmt_a, dvrip_fallback, rtsp_url]
+        return [ffmpeg_realmonitor, realmonitor_url, dvrip_fallback, rtsp_url]
     except Exception:
         return [rtsp_url]
 
