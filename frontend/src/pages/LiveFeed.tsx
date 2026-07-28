@@ -2,13 +2,10 @@ import { useState, useRef, useEffect } from 'react'
 import {
   Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField,
   Card, CardContent, CardActions, Grid, LinearProgress, Checkbox, FormControlLabel, Alert,
-  Chip, Divider, ToggleButtonGroup, ToggleButton, Tooltip, Stack,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
 import DvrIcon from '@mui/icons-material/Dvr'
-import VideocamIcon from '@mui/icons-material/Videocam'
-import RouterIcon from '@mui/icons-material/Router'
 import { useCameras } from '../hooks/useCameras'
 import { CameraGrid } from '../components/CameraGrid'
 import { useAuth } from '../auth/AuthContext'
@@ -22,31 +19,6 @@ interface NvrChannel {
   online: boolean
   rtsp_url: string
 }
-
-// XMEye types
-interface XMEyeDevice {
-  ip: string
-  tcp_port: number
-  http_port: number
-  device_name: string
-  device_type: string
-  serial_no: string
-  mac: string
-  channel_count: number
-  software_version: string
-  build_date: string
-}
-
-interface XMEyeChannel {
-  channel: number
-  name: string
-  rtsp_url_main: string
-  rtsp_url_sub: string
-  rtsp_url_main_b: string
-  rtsp_url_sub_b: string
-}
-
-type XMEyeStep = 'scan' | 'credentials' | 'channels'
 
 export default function LiveFeed() {
   const { cameras, addCamera, refetchCameras, scanNetwork, getScanStatus, getScanResults } = useCameras()
@@ -73,26 +45,6 @@ export default function LiveFeed() {
   const [nvrSelected, setNvrSelected] = useState<Set<number>>(new Set())
   const [nvrRegistering, setNvrRegistering] = useState(false)
   const [nvrResult, setNvrResult] = useState('')
-
-  // ── XMEye state ──────────────────────────────────────────────────────────
-  const [xmeyeOpen, setXmeyeOpen] = useState(false)
-  const [xmeyeStep, setXmeyeStep] = useState<XMEyeStep>('scan')
-  const [xmeyeScanning, setXmeyeScanning] = useState(false)
-  const [xmeyeScanError, setXmeyeScanError] = useState('')
-  const [xmeyeDevices, setXmeyeDevices] = useState<XMEyeDevice[]>([])
-  const [xmeyeSelectedDevice, setXmeyeSelectedDevice] = useState<XMEyeDevice | null>(null)
-  const [xmeyeUsername, setXmeyeUsername] = useState('admin')
-  const [xmeyePassword, setXmeyePassword] = useState('')
-  const [xmeyeRtspPort, setXmeyeRtspPort] = useState('554')
-  const [xmeyeConnecting, setXmeyeConnecting] = useState(false)
-  const [xmeyeConnectError, setXmeyeConnectError] = useState('')
-  const [xmeyeChannels, setXmeyeChannels] = useState<XMEyeChannel[]>([])
-  const [xmeyeSelected, setXmeyeSelected] = useState<Set<number>>(new Set())
-  const [xmeyeRtspFormat, setXmeyeRtspFormat] = useState<'A' | 'B'>('A')
-  const [xmeyeSubstream, setXmeyeSubstream] = useState(false)
-  const [xmeyeAdding, setXmeyeAdding] = useState(false)
-  const [xmeyeAddError, setXmeyeAddError] = useState('')
-  const [xmeyeAddResult, setXmeyeAddResult] = useState('')
 
   useEffect(() => {
     return () => { if (scanPollRef.current) clearInterval(scanPollRef.current) }
@@ -136,97 +88,6 @@ export default function LiveFeed() {
     } finally { setNvrRegistering(false) }
   }
 
-  // ── XMEye handlers ───────────────────────────────────────────────────────
-  const openXmeyeDialog = () => {
-    setXmeyeOpen(true)
-    setXmeyeStep('scan')
-    setXmeyeDevices([])
-    setXmeyeScanError('')
-    setXmeyeSelectedDevice(null)
-    setXmeyeChannels([])
-    setXmeyeSelected(new Set())
-    setXmeyeAddResult('')
-    setXmeyeAddError('')
-    startXmeyeScan()
-  }
-
-  const startXmeyeScan = async () => {
-    setXmeyeScanning(true)
-    setXmeyeScanError('')
-    setXmeyeDevices([])
-    try {
-      const { data } = await api.post('/xmeye/scan')
-      setXmeyeDevices(data.devices || [])
-      if ((data.devices || []).length === 0) {
-        setXmeyeScanError('No XMEye devices found on your local network.')
-      }
-    } catch (e: any) {
-      setXmeyeScanError(e?.response?.data?.detail || 'Scan failed — check network access')
-    } finally {
-      setXmeyeScanning(false)
-    }
-  }
-
-  const handleXmeyeSelectDevice = (device: XMEyeDevice) => {
-    setXmeyeSelectedDevice(device)
-    setXmeyeUsername('admin')
-    setXmeyePassword('')
-    setXmeyeConnectError('')
-    setXmeyeStep('credentials')
-  }
-
-  const handleXmeyeConnect = async () => {
-    if (!xmeyeSelectedDevice) return
-    setXmeyeConnecting(true)
-    setXmeyeConnectError('')
-    try {
-      const { data } = await api.post('/xmeye/connect', {
-        ip: xmeyeSelectedDevice.ip,
-        port: xmeyeSelectedDevice.tcp_port,
-        rtsp_port: parseInt(xmeyeRtspPort) || 554,
-        username: xmeyeUsername,
-        password: xmeyePassword,
-        channel_count: xmeyeSelectedDevice.channel_count,
-      })
-      if (!data.success) {
-        setXmeyeConnectError(data.error || 'Login failed — check username and password')
-        return
-      }
-      setXmeyeChannels(data.channels || [])
-      setXmeyeSelected(new Set((data.channels || []).map((c: XMEyeChannel) => c.channel)))
-      setXmeyeStep('channels')
-    } catch (e: any) {
-      setXmeyeConnectError(e?.response?.data?.detail || 'Connection failed')
-    } finally {
-      setXmeyeConnecting(false)
-    }
-  }
-
-  const handleXmeyeAdd = async () => {
-    if (!xmeyeSelectedDevice || xmeyeSelected.size === 0) return
-    setXmeyeAdding(true)
-    setXmeyeAddError('')
-    try {
-      const { data } = await api.post('/xmeye/add', {
-        ip: xmeyeSelectedDevice.ip,
-        username: xmeyeUsername,
-        password: xmeyePassword,
-        rtsp_port: parseInt(xmeyeRtspPort) || 554,
-        channels: Array.from(xmeyeSelected).sort(),
-        rtsp_format: xmeyeRtspFormat,
-        use_substream: xmeyeSubstream,
-      })
-      const count = Array.isArray(data) ? data.length : 0
-      setXmeyeAddResult(`Added ${count} camera(s) successfully! cv-engine will pick them up within 10 seconds.`)
-      refetchCameras()
-      setTimeout(() => setXmeyeOpen(false), 2500)
-    } catch (e: any) {
-      setXmeyeAddError(e?.response?.data?.detail || 'Failed to add cameras')
-    } finally {
-      setXmeyeAdding(false)
-    }
-  }
-
   const isFirstCamera = cameras.length === 0
 
   return (
@@ -239,13 +100,6 @@ export default function LiveFeed() {
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1.5, width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'flex-start', sm: 'flex-end' }, flexWrap: 'wrap' }}>
-          {hasPermission('cameras:scan') && (
-            <Tooltip title="Discover XMEye / Xiongmai NVRs and IP cameras on your local network">
-              <Button variant="outlined" color="warning" startIcon={<RouterIcon />} onClick={openXmeyeDialog}>
-                Scan XMEye / DVRIP
-              </Button>
-            </Tooltip>
-          )}
           {hasPermission('cameras:scan') && (
             <Button variant="outlined" color="primary" startIcon={<DvrIcon />} onClick={() => setAddDeviceModalOpen(true)}>
               NVR Auto Discover / Add Device
@@ -263,7 +117,7 @@ export default function LiveFeed() {
                 const poll = setInterval(async () => {
                   try {
                     const status = await getScanStatus()
-                    if (!status.scanning) {
+                    if (status.status === 'completed' || status.status === 'error') {
                       clearInterval(poll)
                       scanPollRef.current = null
                       setScanning(false)
@@ -287,177 +141,6 @@ export default function LiveFeed() {
 
       <AddDeviceModal open={addDeviceModalOpen} onClose={() => setAddDeviceModalOpen(false)} onSuccess={refetchCameras} />
 
-      {/* ── XMEye / DVRIP Dialog ─────────────────────────────────────────── */}
-      <Dialog open={xmeyeOpen} onClose={() => setXmeyeOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <RouterIcon color="warning" />
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>XMEye / DVRIP Camera Discovery</Typography>
-            <Box sx={{ ml: 'auto' }}>
-              {xmeyeStep === 'scan' && <Chip label="Step 1 — Scan" size="small" color="warning" />}
-              {xmeyeStep === 'credentials' && <Chip label="Step 2 — Login" size="small" color="primary" />}
-              {xmeyeStep === 'channels' && <Chip label="Step 3 — Pick Channels" size="small" color="success" />}
-            </Box>
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          {/* Step 1: Scan */}
-          {xmeyeStep === 'scan' && (
-            <Box>
-              {xmeyeScanning && (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <LinearProgress color="warning" sx={{ mb: 2 }} />
-                  <Typography variant="body2" color="text.secondary">Broadcasting UDP discovery on port 34568…</Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                    All XMEye / Xiongmai devices on your LAN will respond within ~5 seconds
-                  </Typography>
-                </Box>
-              )}
-              {xmeyeScanError && !xmeyeScanning && <Alert severity="warning" sx={{ mb: 2 }}>{xmeyeScanError}</Alert>}
-              {!xmeyeScanning && xmeyeDevices.length > 0 && (
-                <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 700 }}>
-                    Found {xmeyeDevices.length} device(s) — click one to connect
-                  </Typography>
-                  <Grid container spacing={2}>
-                    {xmeyeDevices.map((dev) => (
-                      <Grid item xs={12} sm={6} key={dev.ip}>
-                        <Card
-                          variant="outlined"
-                          sx={{
-                            cursor: 'pointer', border: '2px solid', borderColor: 'divider',
-                            transition: 'border-color 0.15s', '&:hover': { borderColor: 'warning.main' },
-                          }}
-                          onClick={() => handleXmeyeSelectDevice(dev)}
-                        >
-                          <CardContent>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                              <VideocamIcon color="warning" />
-                              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{dev.device_name || `XMEye @ ${dev.ip}`}</Typography>
-                              <Chip label={dev.device_type || 'Device'} size="small" sx={{ ml: 'auto' }} />
-                            </Box>
-                            <Typography variant="caption" sx={{ fontFamily: '"JetBrains Mono", monospace', display: 'block', color: 'text.secondary' }}>
-                              IP: {dev.ip} &nbsp;|&nbsp; Channels: {dev.channel_count}
-                            </Typography>
-                            {dev.serial_no && <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>S/N: {dev.serial_no}</Typography>}
-                            {dev.software_version && <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>FW: {dev.software_version}</Typography>}
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                    ))}
-                  </Grid>
-                </Box>
-              )}
-            </Box>
-          )}
-
-          {/* Step 2: Credentials */}
-          {xmeyeStep === 'credentials' && xmeyeSelectedDevice && (
-            <Box>
-              <Alert severity="info" sx={{ mb: 2 }}>
-                Connecting to <strong>{xmeyeSelectedDevice.device_name || xmeyeSelectedDevice.ip}</strong>
-                &nbsp;({xmeyeSelectedDevice.ip}) via DVRIP on port {xmeyeSelectedDevice.tcp_port}
-              </Alert>
-              <Stack spacing={2}>
-                <TextField fullWidth label="Username" value={xmeyeUsername} onChange={(e) => setXmeyeUsername(e.target.value)} helperText="Default is 'admin'" />
-                <TextField fullWidth label="Password" type="password" value={xmeyePassword} onChange={(e) => setXmeyePassword(e.target.value)} helperText="Leave blank if no password is set" />
-                <TextField fullWidth label="RTSP Port" value={xmeyeRtspPort} onChange={(e) => setXmeyeRtspPort(e.target.value)} helperText="Usually 554. Change if NVR uses non-standard RTSP port." />
-                {xmeyeConnectError && <Alert severity="error">{xmeyeConnectError}</Alert>}
-              </Stack>
-            </Box>
-          )}
-
-          {/* Step 3: Channel Picker */}
-          {xmeyeStep === 'channels' && (
-            <Box>
-              {xmeyeAddResult && <Alert severity="success" sx={{ mb: 2 }}>{xmeyeAddResult}</Alert>}
-              {xmeyeAddError && <Alert severity="error" sx={{ mb: 2 }}>{xmeyeAddError}</Alert>}
-              {!xmeyeAddResult && (
-                <>
-                  <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                      {xmeyeChannels.length} channel(s) available — select which to add
-                    </Typography>
-                    <Button size="small" onClick={() => {
-                      const all = xmeyeChannels.every(c => xmeyeSelected.has(c.channel))
-                      setXmeyeSelected(all ? new Set() : new Set(xmeyeChannels.map(c => c.channel)))
-                    }}>
-                      {xmeyeChannels.every(c => xmeyeSelected.has(c.channel)) ? 'Deselect All' : 'Select All'}
-                    </Button>
-                  </Box>
-                  <Grid container spacing={2} sx={{ mb: 3 }}>
-                    {xmeyeChannels.map((ch) => (
-                      <Grid item xs={12} sm={6} key={ch.channel}>
-                        <Card variant="outlined" sx={{
-                          border: xmeyeSelected.has(ch.channel) ? '2px solid' : '1px solid',
-                          borderColor: xmeyeSelected.has(ch.channel) ? 'success.main' : 'divider',
-                        }}>
-                          <CardContent sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, py: '12px !important' }}>
-                            <Checkbox checked={xmeyeSelected.has(ch.channel)} onChange={() => setXmeyeSelected(prev => {
-                              const next = new Set(prev)
-                              if (next.has(ch.channel)) next.delete(ch.channel); else next.add(ch.channel)
-                              return next
-                            })} sx={{ mt: -0.5 }} />
-                            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{ch.name}</Typography>
-                              <Typography variant="caption" sx={{ fontFamily: '"JetBrains Mono", monospace', color: 'text.secondary', fontSize: '10px', display: 'block', wordBreak: 'break-all' }}>
-                                {xmeyeSubstream
-                                  ? (xmeyeRtspFormat === 'A' ? ch.rtsp_url_sub : ch.rtsp_url_sub_b)
-                                  : (xmeyeRtspFormat === 'A' ? ch.rtsp_url_main : ch.rtsp_url_main_b)}
-                              </Typography>
-                            </Box>
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                    ))}
-                  </Grid>
-                  <Divider sx={{ mb: 2 }} />
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5, fontWeight: 600 }}>Stream Options</Typography>
-                  <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">RTSP URL Format</Typography>
-                      <ToggleButtonGroup size="small" exclusive value={xmeyeRtspFormat}
-                        onChange={(_, v) => { if (v) setXmeyeRtspFormat(v) }} sx={{ display: 'flex', mt: 0.5 }}>
-                        <ToggleButton value="A">Format A (Legacy)</ToggleButton>
-                        <ToggleButton value="B">Format B (ch01/0)</ToggleButton>
-                      </ToggleButtonGroup>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                        Try Format A first. Use B if streams fail to open.
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">Stream Quality</Typography>
-                      <ToggleButtonGroup size="small" exclusive value={xmeyeSubstream ? 'sub' : 'main'}
-                        onChange={(_, v) => { if (v) setXmeyeSubstream(v === 'sub') }} sx={{ display: 'flex', mt: 0.5 }}>
-                        <ToggleButton value="main">Main (HD)</ToggleButton>
-                        <ToggleButton value="sub">Sub (SD)</ToggleButton>
-                      </ToggleButtonGroup>
-                    </Box>
-                  </Box>
-                </>
-              )}
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          {xmeyeStep === 'credentials' && <Button onClick={() => setXmeyeStep('scan')}>← Back</Button>}
-          {xmeyeStep === 'channels' && !xmeyeAddResult && <Button onClick={() => setXmeyeStep('credentials')}>← Back</Button>}
-          <Button onClick={() => setXmeyeOpen(false)}>{xmeyeAddResult ? 'Done' : 'Cancel'}</Button>
-          {xmeyeStep === 'scan' && !xmeyeScanning && (
-            <Button variant="outlined" color="warning" onClick={startXmeyeScan}>Rescan</Button>
-          )}
-          {xmeyeStep === 'credentials' && (
-            <Button variant="contained" onClick={handleXmeyeConnect} disabled={xmeyeConnecting || !xmeyeUsername}>
-              {xmeyeConnecting ? 'Connecting…' : 'Connect & List Channels →'}
-            </Button>
-          )}
-          {xmeyeStep === 'channels' && !xmeyeAddResult && (
-            <Button variant="contained" color="success" onClick={handleXmeyeAdd} disabled={xmeyeAdding || xmeyeSelected.size === 0}>
-              {xmeyeAdding ? 'Adding…' : `Add ${xmeyeSelected.size} Camera(s)`}
-            </Button>
-          )}
-        </DialogActions>
-      </Dialog>
 
       {/* Dahua NVR Discover Dialog */}
       <Dialog open={nvrDialogOpen} onClose={() => setNvrDialogOpen(false)} maxWidth="md" fullWidth>
