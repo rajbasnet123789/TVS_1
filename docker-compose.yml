@@ -125,7 +125,7 @@ services:
       INFLUX_BUCKET: detections
       BUSINESS_BACKEND_URL: http://localhost:18000
       GO2RTC_API_URL: http://localhost:1984
-      GO2RTC_RTSP_URL: rtsp://localhost:554
+      GO2RTC_RTSP_URL: rtsp://localhost:8554
       JWT_SECRET: ${JWT_SECRET}
       JWT_ALGORITHM: HS256
       MQTT_BROKER: localhost

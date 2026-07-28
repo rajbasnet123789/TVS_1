@@ -16,15 +16,14 @@ logger = logging.getLogger(__name__)
 import json
 
 
-def _format_go2rtc_src(rtsp_url: str) -> str:
-    """Format source URL for go2rtc ingestion — uses dvrip:// for TVS NVR binary TCP on port 34567."""
+def _format_go2rtc_src(rtsp_url: str) -> list[str]:
+    """Format source URLs for go2rtc ingestion with dvrip and RTSP fallbacks."""
     try:
         parsed = urllib.parse.urlparse(rtsp_url)
         user = parsed.username or "admin"
         password = parsed.password or ""
         host = parsed.hostname or "127.0.0.1"
 
-        # Extract channel number from query params (channel=X) or path (/ch0X / /0)
         channel = "1"
         if "channel=" in rtsp_url:
             params = urllib.parse.parse_qs(parsed.query)
@@ -35,22 +34,31 @@ def _format_go2rtc_src(rtsp_url: str) -> str:
             if m:
                 channel = m.group(1)
 
-        return f"dvrip://{user}:{password}@{host}:34567/{channel}"
+        ch_num = int(channel)
+        dvrip_ch = max(0, ch_num - 1)
+        dvrip_url = f"dvrip://{user}:{password}@{host}:34567?channel={dvrip_ch}"
+        rtsp_url_fmt_a = f"rtsp://{user}:{password}@{host}:554/user={user}&password={password}&channel={ch_num}&stream=0.sdp"
+        rtsp_url_fmt_b = f"rtsp://{user}:{password}@{host}:554/ch{ch_num:02d}/0"
+        return [dvrip_url, rtsp_url_fmt_a, rtsp_url_fmt_b, rtsp_url]
     except Exception:
-        return rtsp_url
+        return [rtsp_url]
 
 
 def _register_go2rtc_stream(camera_id: str, rtsp_url: str) -> str:
     """Register camera stream source in go2rtc via REST API and return go2rtc RTSP re-stream URL."""
-    src = _format_go2rtc_src(rtsp_url)
+    sources = _format_go2rtc_src(rtsp_url)
     try:
-        # PUT /api/streams?name=...&src=... is go2rtc's idempotent stream upsert API
-        query = urllib.parse.urlencode({"name": camera_id, "src": src})
-        url = f"{settings.GO2RTC_API_URL}/api/streams?{query}"
-        req = urllib.request.Request(url, method="PUT")
+        url = f"{settings.GO2RTC_API_URL}/api/streams"
+        payload = json.dumps({"name": camera_id, "src": sources}).encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="PUT",
+        )
         with urllib.request.urlopen(req, timeout=3) as resp:
             if resp.status in (200, 201):
-                logger.info("Registered stream %s in go2rtc (src: %s)", camera_id, src)
+                logger.info("Registered stream %s in go2rtc (%d sources)", camera_id, len(sources))
                 return f"{settings.GO2RTC_RTSP_URL}/{camera_id}"
     except Exception as e:
         logger.debug("go2rtc stream upsert for %s: %s", camera_id, e)

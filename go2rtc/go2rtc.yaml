@@ -1,9 +1,8 @@
-# go2rtc configuration file for TVS NVR system
 api:
   listen: ":1984"
 
 rtsp:
-  listen: ":554"
+  listen: ":8554"
 
 log:
   level: info
