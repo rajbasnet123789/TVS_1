@@ -4,7 +4,7 @@ import threading
 from datetime import datetime, timezone
 
 from influxdb_client import InfluxDBClient, Point, WritePrecision
-from influxdb_client.client.write_api import SYNCHRONOUS
+from influxdb_client.client.write_api import WriteOptions
 
 from cv_engine.config import settings
 
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class InfluxWriter(threading.Thread):
     def __init__(self):
         super().__init__(daemon=True, name="influx-writer")
-        self._queue: queue.Queue = queue.Queue(maxsize=5000)
+        self._queue: queue.Queue = queue.Queue(maxsize=20000)
         self._stop_event = threading.Event()
         self._client: InfluxDBClient | None = None
         self._write_api = None
@@ -25,7 +25,18 @@ class InfluxWriter(threading.Thread):
             token=settings.INFLUX_TOKEN,
             org=settings.INFLUX_ORG,
         )
-        self._write_api = self._client.write_api(write_options=SYNCHRONOUS)
+        # Use batched async writing instead of SYNCHRONOUS.
+        # SYNCHRONOUS makes a separate HTTP request for every single detection point,
+        # which blocks the thread and causes queue overflow with multiple cameras.
+        self._write_api = self._client.write_api(
+            write_options=WriteOptions(
+                batch_size=500,
+                flush_interval=1000,
+                jitter_interval=0,
+                retry_interval=5000,
+                max_retries=3,
+            )
+        )
         super().start()
 
     def enqueue(self, event: dict) -> None:
