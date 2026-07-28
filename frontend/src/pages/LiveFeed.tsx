@@ -117,7 +117,7 @@ export default function LiveFeed() {
                 const poll = setInterval(async () => {
                   try {
                     const status = await getScanStatus()
-                    if (status.status === 'completed' || status.status === 'error') {
+                    if (!status.scanning) {
                       clearInterval(poll)
                       scanPollRef.current = null
                       setScanning(false)
