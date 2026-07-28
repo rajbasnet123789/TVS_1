@@ -182,8 +182,7 @@ def _dvrip_login_blocking(
 
         # Read response — first 20-byte header, then payload
         header_bytes = _recv_exact(sock, _HEADER_SIZE)
-        fields = struct.unpack_from(_HEADER_FMT, header_bytes)
-        payload_len = fields[9]
+        payload_len = struct.unpack_from("<I", header_bytes, 16)[0]
 
         payload_bytes = _recv_exact(sock, payload_len) if payload_len else b""
         _, resp = _parse_response(header_bytes + payload_bytes)

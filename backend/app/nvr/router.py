@@ -74,8 +74,27 @@ async def connect_nvr(
 
     channels: list[DiscoveredChannel] = []
 
-    # 1. Try Dahua / CGI protocol if Dahua selected or port is default
-    if protocol.lower() in ("dahua", "general"):
+    # 1. Try DVRIP TCP login first if port is 34567 or protocol is General/DVR-IP/XMEye
+    if port == 34567 or protocol.lower() in ("dvrip", "xmeye", "general"):
+        from app.xmeye.client import dvrip_login, DVRIPAuthError, build_all_rtsp_urls
+        try:
+            resp = await dvrip_login(ip=ip, port=port, username=username, password=password)
+            ch_num = int(resp.get("ChannelNum") or resp.get("ExtraChannel") or 16)
+            for idx in range(1, ch_num + 1):
+                urls = build_all_rtsp_urls(host=ip, username=username, password=password, channel=idx, rtsp_port=554)
+                channels.append(DiscoveredChannel(
+                    channel=idx,
+                    name=f"{data.device_name or ip} - Ch {idx}",
+                    online=True,
+                    rtsp_url=urls["main_stream_format_a"],
+                ))
+        except DVRIPAuthError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            logger.debug("DVRIP probe skipped: %s", e)
+
+    # 2. Try Dahua / CGI protocol if no channels yet and protocol is Dahua or General
+    if not channels and protocol.lower() in ("dahua", "general"):
         from app.nvr.client import DahuaNvrClient
         client = DahuaNvrClient(host=ip, username=username, password=password, port=port if port in (80, 8080) else 80)
         try:
@@ -91,7 +110,7 @@ async def connect_nvr(
             logger.debug("Dahua CGI probe attempt skipped: %s", e)
             await client.close()
 
-    # 2. If no channels returned from CGI probe, build default channel streams based on Protocol
+    # 3. Fallback: build default channel streams based on Protocol
     if not channels:
         num_channels = 16  # standard NVR 16 channels layout
         if protocol.lower() == "hikvision":
@@ -106,17 +125,11 @@ async def connect_nvr(
             for idx in range(1, num_channels + 1):
                 rtsp_url = f"rtsp://{auth_str}{ip}:554/onvif{idx}"
                 channels.append(DiscoveredChannel(channel=idx, name=f"ONVIF Ch {idx} ({ip})", online=True, rtsp_url=rtsp_url))
-        elif protocol.lower() in ("dvrip", "general"):
-            rtsp_base_port = 554 if port in (34567, 80, 8080) else port
-            for idx in range(1, num_channels + 1):
-                stream_url = f"rtsp://{auth_str}{ip}:{rtsp_base_port}/cam/realmonitor?channel={idx}&subtype=0"
-                channels.append(DiscoveredChannel(channel=idx, name=f"{data.device_name or ip} - Ch {idx}", online=True, rtsp_url=stream_url))
         else:
-            # Fallback NVR RTSP pattern
-            rtsp_base_port = 554 if port in (34567, 80, 8080) else port
+            # Default XMEye / General RTSP format
             for idx in range(1, num_channels + 1):
-                rtsp_url = f"rtsp://{auth_str}{ip}:{rtsp_base_port}/cam/realmonitor?channel={idx}&subtype=0"
-                channels.append(DiscoveredChannel(channel=idx, name=f"{data.device_name or ip} - Ch {idx}", online=True, rtsp_url=rtsp_url))
+                stream_url = f"rtsp://{auth_str}{ip}:554/user={username}&password={password}&channel={idx}&stream=0.sdp"
+                channels.append(DiscoveredChannel(channel=idx, name=f"{data.device_name or ip} - Ch {idx}", online=True, rtsp_url=stream_url))
 
     return {
         "device_name": data.device_name or ip,
