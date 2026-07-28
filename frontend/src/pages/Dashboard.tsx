@@ -32,6 +32,7 @@ import { StatCard } from '../components/StatCard'
 import { CameraFeed } from '../components/CameraFeed'
 import { useWebSocket } from '../hooks/useWebSocket'
 import { useAuth } from '../auth/AuthContext'
+import { useCameras } from '../hooks/useCameras'
 
 interface LogEntry {
   time: string
@@ -44,9 +45,9 @@ interface LogEntry {
 
 export default function Dashboard() {
   const { user, farms, currentFarm, setCurrentFarm } = useAuth()
+  const { cameras } = useCameras()
   const navigate = useNavigate()
   const [stats, setStats] = useState({ chickens: 0, cameras: 0, onlineCameras: 0, healthyPct: 0, alerts: 0 })
-  const [cameras, setCameras] = useState<any[]>([])
   const [detectedChickens, setDetectedChickens] = useState<any[]>([])
   const [coops, setCoops] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -95,21 +96,18 @@ export default function Dashboard() {
       if (inFlight) return
       inFlight = true
       try {
-        const [camerasRes, detectedRes, coopsRes] = await Promise.all([
-          api.get('/cameras').catch(() => ({ data: [] })),
+        const [detectedRes, coopsRes] = await Promise.all([
           api.get('/chickens/detected', { params: { start: '-1h', end: 'now()' } }).catch(() => ({ data: [] })),
           api.get('/coops').catch(() => ({ data: [] })),
         ])
 
-        const camerasList = Array.isArray(camerasRes?.data) ? camerasRes.data : []
         const detected = Array.isArray(detectedRes?.data) ? detectedRes.data : []
         const coopsList = Array.isArray(coopsRes?.data) ? coopsRes.data : []
 
-        setCameras(camerasList)
         setCoops(coopsList)
         setDetectedChickens(detected)
 
-        const onlineCamerasList = camerasList.filter((c: any) => c && c.status === 'online')
+        const onlineCamerasList = cameras.filter((c: any) => c && c.status === 'online')
 
         let totalDetections = 0
         let uniqueChickensCount = 0
@@ -126,15 +124,15 @@ export default function Dashboard() {
           )
         }
 
-        const alerts = camerasList.filter((c: any) => c && c.status === 'offline').length
+        const alerts = cameras.filter((c: any) => c && c.status === 'offline').length
         const healthyPct = Math.min(100, Math.round(
-          (onlineCamerasList.length / Math.max(camerasList.length, 1)) * 60 +
+          (onlineCamerasList.length / Math.max(cameras.length, 1)) * 60 +
           (uniqueChickensCount > 0 ? 40 : 0)
         ))
 
         setStats({
           chickens: detected.length > 0 ? detected.length : (uniqueChickensCount || 0),
-          cameras: camerasList.length,
+          cameras: cameras.length,
           onlineCameras: onlineCamerasList.length,
           healthyPct,
           alerts,
@@ -155,7 +153,7 @@ export default function Dashboard() {
       clearInterval(interval)
       Object.values(activeCoopTimeouts.current).forEach(t => window.clearTimeout(t))
     }
-  }, [currentFarm])
+  }, [currentFarm, cameras])
 
   // WebSocket alerts and telemetry listener
   useWebSocket({
