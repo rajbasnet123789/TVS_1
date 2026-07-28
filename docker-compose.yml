@@ -184,6 +184,10 @@ services:
     # High port (18000) avoids conflicts with other projects on the server.
     ports:
       - "127.0.0.1:18000:8000"
+    # Allows backend to reach cv-engine (host network) via host.docker.internal:8700
+    # Required for proxying /xmeye/scan (UDP broadcast must run on host network).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - poultry_media:/var/opt/poultry/media
     depends_on:

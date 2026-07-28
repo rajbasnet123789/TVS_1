@@ -7,13 +7,16 @@ from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from jose import JWTError, jwt
 
 from cv_engine import frame_store
 from cv_engine.camera_manager import CameraManager
 from cv_engine.config import settings
 from cv_engine.influx_writer import InfluxWriter
+# XMEye discovery runs here because cv-engine has network_mode:host
+# and can broadcast UDP to the physical LAN. Backend (bridge network) cannot.
+from cv_engine.xmeye_scan import scan_xmeye_lan
 
 from typing import Any
 
@@ -100,6 +103,26 @@ async def health():
 @app.get("/status")
 async def status():
     return {"cameras": _camera_manager.get_status() if _camera_manager else {}}
+
+
+@app.post("/xmeye-scan")
+async def xmeye_scan(timeout: float = 5.0):
+    """
+    UDP broadcast scan for XMEye/DVRIP NVRs on the local LAN.
+
+    Must run here (cv-engine, network_mode:host) because Docker bridge
+    blocks UDP broadcasts from reaching the physical network.
+    Called by the backend /xmeye/scan endpoint which proxies here.
+    """
+    try:
+        devices = await scan_xmeye_lan(timeout=timeout)
+        return {"devices": devices, "count": len(devices)}
+    except Exception as exc:
+        logger.error("XMEye LAN scan error: %s", exc)
+        return JSONResponse(
+            status_code=502,
+            content={"detail": f"XMEye LAN scan failed: {exc}"},
+        )
 
 
 @app.websocket("/cvws/{camera_id}")

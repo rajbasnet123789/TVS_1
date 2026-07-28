@@ -2,12 +2,18 @@
 XMEye / DVRIP API router.
 
 Endpoints:
-  POST /xmeye/scan     — UDP broadcast to discover XMEye devices on the LAN
+  POST /xmeye/scan     — proxy to cv-engine which does UDP broadcast on host network
   POST /xmeye/connect  — DVRIP TCP login to validate credentials and list channels
   POST /xmeye/add      — Add selected NVR channels as cameras in the database
+
+Why proxy /scan to cv-engine?
+  UDP broadcasts (255.255.255.255:34568) do NOT cross Docker bridge NAT.
+  The backend runs in Docker bridge mode and cannot reach the physical LAN
+  via broadcast. cv-engine runs with network_mode:host and has full LAN access.
 """
 import logging
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,13 +23,13 @@ from app.cameras.models import Camera
 from app.cameras.schemas import CameraOut
 from app.cameras.service import create_camera
 from app.cameras.schemas import CameraCreate
+from app.config import settings
 from app.database import get_db
 from app.xmeye.client import (
     DVRIPAuthError,
     build_all_rtsp_urls,
     dvrip_login,
 )
-from app.xmeye.discovery import discover_xmeye_devices
 from app.xmeye.schemas import (
     XMEyeAddChannelsRequest,
     XMEyeChannelInfo,
@@ -37,45 +43,55 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/xmeye", tags=["xmeye"])
 
+# cv-engine runs with network_mode:host — reachable from backend via
+# host.docker.internal (Docker bridge gateway) on port 8700.
+_CV_ENGINE_URL = "http://host.docker.internal:8700"
+
 
 @router.post("/scan", response_model=XMEyeScanResponse)
 async def scan_xmeye_devices(
     user: User = Depends(require_permission("cameras:scan")),
 ):
     """
-    Broadcast-scan the local LAN for XMEye/DVRIP cameras and NVRs.
+    Discover XMEye/DVRIP cameras on the LAN.
 
-    Sends a UDP broadcast to 255.255.255.255:34568 and collects JSON responses
-    from Xiongmai-based devices (XMEye, Dahua OEM, etc.).
-
-    Returns a list of discovered devices with their IP, channel count, and device info.
-    No credentials are required for discovery — this is a read-only LAN broadcast.
+    Proxies the request to cv-engine (network_mode:host) which performs the
+    UDP broadcast. The backend cannot do this directly because Docker bridge
+    network blocks UDP broadcasts from reaching the physical LAN.
     """
     try:
-        raw_devices = await discover_xmeye_devices(timeout=5.0)
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            resp = await client.post(f"{_CV_ENGINE_URL}/xmeye-scan", params={"timeout": 5.0})
+            resp.raise_for_status()
+            data = resp.json()
+    except httpx.ConnectError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="cv-engine is not reachable. Make sure it is running and healthy.",
+        )
     except Exception as exc:
-        logger.error("XMEye LAN scan failed: %s", exc)
+        logger.error("XMEye scan proxy error: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"XMEye LAN scan failed: {exc}",
         )
 
+    raw_devices = data.get("devices", [])
     devices = [
         XMEyeDiscoveredDevice(
-            ip=d.ip,
-            tcp_port=d.tcp_port,
-            http_port=d.http_port,
-            device_name=d.device_name or f"XMEye device @ {d.ip}",
-            device_type=d.device_type,
-            serial_no=d.serial_no,
-            mac=d.mac,
-            channel_count=d.channel_count,
-            software_version=d.software_version,
-            build_date=d.build_date,
+            ip=d["ip"],
+            tcp_port=d.get("tcp_port", 34567),
+            http_port=d.get("http_port", 80),
+            device_name=d.get("device_name") or f"XMEye @ {d['ip']}",
+            device_type=d.get("device_type", ""),
+            serial_no=d.get("serial_no", ""),
+            mac=d.get("mac", ""),
+            channel_count=d.get("channel_count", 1),
+            software_version=d.get("software_version", ""),
+            build_date=d.get("build_date", ""),
         )
         for d in raw_devices
     ]
-
     return XMEyeScanResponse(devices=devices, count=len(devices))
 
 
