@@ -13,16 +13,20 @@ logger = logging.getLogger(__name__)
 def normalize_url(url: str) -> tuple[str, bool]:
     if not url:
         return url, False
+    if "8554" in url or "localhost" in url or "127.0.0.1" in url or "go2rtc" in url:
+        return url, True
     if url.startswith("dvrip://"):
-        import re
-        match = re.match(r"dvrip://(?:([^:]+):([^@]+)@)?([^:/]+)(?::(\d+))?/(\d+)", url)
-        if match:
-            user, pwd, host, port, ch = match.groups()
-            ch_num = int(ch)
-            user_str = user or "admin"
-            pwd_str = pwd or ""
-            auth_str = f"{user_str}:{pwd_str}@" if user_str else ""
-            return f"rtsp://{auth_str}{host}:554/user={user_str}&password={pwd_str}&channel={ch_num}&stream=0.sdp", True
+        import urllib.parse
+        parsed = urllib.parse.urlparse(url)
+        ch_idx = 0
+        if "channel=" in url:
+            params = urllib.parse.parse_qs(parsed.query)
+            ch_idx = int(params.get("channel", ["0"])[0])
+        else:
+            parts = parsed.path.strip("/").split("/")
+            if parts and parts[0].isdigit():
+                ch_idx = int(parts[0])
+        return f"rtsp://localhost:8554/ch{ch_idx}", True
     return url, url.startswith("rtsp://")
 
 
