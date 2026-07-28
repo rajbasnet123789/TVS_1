@@ -56,6 +56,42 @@ async def validate_token(request: Request, credentials: HTTPAuthorizationCredent
     return {"valid": True, "sub": payload.get("sub")}
 
 
+@router.get("/ws-token", include_in_schema=False)
+async def get_ws_token(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    """
+    Return a short-lived JWT (2 min) for WebSocket authentication.
+
+    WebSocket connections cannot attach httpOnly cookies via JavaScript, and
+    query-string tokens must be very short-lived to limit exposure. The frontend
+    calls this endpoint (which IS authenticated via the httpOnly cookie) and
+    receives a token it can safely embed in ?token=<ws_token>.
+    """
+    # Prefer Authorization Bearer (impersonation) over cookie (normal session)
+    token = None
+    if credentials:
+        token = credentials.credentials
+    if not token:
+        token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
+    payload = decode_token(token)
+    if payload is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired session")
+
+    # Issue a fresh, short-lived token (2 minutes) scoped for WebSocket use only
+    ws_token = create_access_token(
+        user_id=payload["sub"],
+        role_name=payload.get("role", "viewer"),
+        farm_id=payload.get("farm_id"),
+        expires_delta=timedelta(minutes=2),
+    )
+    return {"ws_token": ws_token}
+
+
 def _set_auth_cookies(response: Response, access_token: str, refresh_token: str):
     response.set_cookie(
         key="access_token",

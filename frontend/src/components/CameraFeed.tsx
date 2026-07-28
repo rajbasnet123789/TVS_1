@@ -10,8 +10,16 @@ import { useCameras } from '../hooks/useCameras'
 import { useAuth } from '../auth/AuthContext'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
 
-function getAuthToken(): string | null {
-  return localStorage.getItem('impersonation_token') || localStorage.getItem('access_token')
+// Fetch a short-lived WebSocket token from the backend.
+// The real access_token is in an httpOnly cookie (not readable by JS);
+// this endpoint reads the cookie server-side and issues a 2-minute token.
+async function fetchWsToken(): Promise<string | null> {
+  try {
+    const res = await api.get('/auth/ws-token')
+    return res.data.ws_token ?? null
+  } catch {
+    return null
+  }
 }
 
 interface CameraFeedProps {
@@ -146,10 +154,20 @@ export function CameraFeed({ id, name, status, compact = false }: CameraFeedProp
 
     let ws: WebSocket | null = null
     let reconnectAttempts = 0
+    let stopped = false
     const maxReconnectDelay = 30000
+    // Reconnect 90s after open to refresh the 2-min WS token before it expires
+    const TOKEN_REFRESH_MS = 90_000
+    let tokenRefreshTimer: ReturnType<typeof setTimeout> | undefined
 
-    const connect = () => {
-      const token = getAuthToken()
+    const connect = async () => {
+      if (stopped) return
+      const token = await fetchWsToken()
+      if (!token || stopped) {
+        // Not authenticated — try again after a short delay
+        reconnectRef.current = window.setTimeout(connect, 5000)
+        return
+      }
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
       const wsUrl = `${protocol}//${window.location.host}/cvws/${id}?token=${token}`
 
@@ -159,6 +177,10 @@ export function CameraFeed({ id, name, status, compact = false }: CameraFeedProp
       ws.onopen = () => {
         reconnectAttempts = 0
         setStreamStatus('live')
+        // Schedule a proactive reconnect before the 2-min token expires
+        tokenRefreshTimer = setTimeout(() => {
+          ws?.close()
+        }, TOKEN_REFRESH_MS)
       }
 
       ws.onmessage = (event) => {
@@ -180,6 +202,8 @@ export function CameraFeed({ id, name, status, compact = false }: CameraFeedProp
       }
 
       ws.onclose = () => {
+        clearTimeout(tokenRefreshTimer)
+        if (stopped) return
         setStreamStatus('reconnecting')
         const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), maxReconnectDelay)
         reconnectRef.current = window.setTimeout(() => {
@@ -196,6 +220,8 @@ export function CameraFeed({ id, name, status, compact = false }: CameraFeedProp
     connect()
 
     return () => {
+      stopped = true
+      clearTimeout(tokenRefreshTimer)
       if (reconnectRef.current) clearTimeout(reconnectRef.current)
       ws?.close()
       wsRef.current = null
@@ -248,34 +274,41 @@ export function CameraFeed({ id, name, status, compact = false }: CameraFeedProp
     if (!canvas) return
     if (!dialogImgRef.current) dialogImgRef.current = new Image()
 
-    const token = getAuthToken()
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = `${protocol}//${window.location.host}/cvws/${id}?token=${token}`
-    const ws = new WebSocket(wsUrl)
-    dialogWsRef.current = ws
+    let ws: WebSocket | null = null
+    let cancelled = false
 
-    ws.onmessage = (event) => {
-      if (event.data instanceof ArrayBuffer) {
-        const blob = new Blob([event.data], { type: 'image/jpeg' })
-        const img = dialogImgRef.current!
-        const url = URL.createObjectURL(blob)
-        img.onload = () => {
-          const ctx = canvas.getContext('2d')
-          if (!ctx) return
-          canvas.width = img.naturalWidth
-          canvas.height = img.naturalHeight
-          ctx.drawImage(img, 0, 0)
-          URL.revokeObjectURL(url)
+    fetchWsToken().then((token) => {
+      if (cancelled || !token) return
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const wsUrl = `${protocol}//${window.location.host}/cvws/${id}?token=${token}`
+      ws = new WebSocket(wsUrl)
+      dialogWsRef.current = ws
+
+      ws.onmessage = (event) => {
+        if (event.data instanceof ArrayBuffer) {
+          const blob = new Blob([event.data], { type: 'image/jpeg' })
+          const img = dialogImgRef.current!
+          const url = URL.createObjectURL(blob)
+          img.onload = () => {
+            const ctx = canvas.getContext('2d')
+            if (!ctx) return
+            canvas.width = img.naturalWidth
+            canvas.height = img.naturalHeight
+            ctx.drawImage(img, 0, 0)
+            URL.revokeObjectURL(url)
+          }
+          img.src = url
         }
-        img.src = url
       }
-    }
+    })
 
     return () => {
-      ws.close()
+      cancelled = true
+      ws?.close()
       dialogWsRef.current = null
     }
   }, [editOpen, id, isOffline])
+
 
   const statusColor = status === 'online' ? '#10b981' : status === 'error' ? '#ef4444' : '#6b7280'
 
