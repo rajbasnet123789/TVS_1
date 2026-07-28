@@ -9,7 +9,7 @@ class Settings:
     INFLUX_BUCKET: str = os.getenv("INFLUX_BUCKET", "detections")
     MQTT_BROKER: str = os.getenv("MQTT_BROKER", "mosquitto")
     MQTT_PORT: int = int(os.getenv("MQTT_PORT", "1883"))
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "")
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "").strip()
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
     # Shared secret for authenticating cv-engine → backend internal API calls
     CV_ENGINE_API_KEY: str = os.getenv("CV_ENGINE_API_KEY", "")

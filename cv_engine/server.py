@@ -28,12 +28,24 @@ _detection_queue: Any = None
 
 
 def _validate_token(token: str) -> dict | None:
+    if not token or token == "null":
+        logger.warning("WS token validation failed: token is empty or string 'null'")
+        return None
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        secret = settings.JWT_SECRET.strip()
+        payload = jwt.decode(token, secret, algorithms=[settings.JWT_ALGORITHM])
         if payload.get("exp") and payload["exp"] < time.time():
+            logger.warning("WS token validation failed: token expired (exp=%s, now=%s)", payload.get("exp"), time.time())
             return None
         return payload
-    except JWTError:
+    except JWTError as e:
+        logger.warning(
+            "WS token validation failed (JWTError): %s | secret_len=%d, token_prefix=%s",
+            e, len(settings.JWT_SECRET), token[:20] if token else "None"
+        )
+        return None
+    except Exception as e:
+        logger.error("WS token validation unexpected error: %s", e)
         return None
 
 
