@@ -17,7 +17,7 @@ import json
 
 
 def _format_go2rtc_src(rtsp_url: str) -> list[str]:
-    """Format source URLs for go2rtc ingestion — RTSP primary, DVRIP fallback."""
+    """Format source URLs for go2rtc ingestion using ffmpeg: prefix for robust TCP RTSP pull."""
     try:
         parsed = urllib.parse.urlparse(rtsp_url)
         user = parsed.username or "admin"
@@ -41,9 +41,12 @@ def _format_go2rtc_src(rtsp_url: str) -> list[str]:
             rtsp_ch = 1
             dvrip_ch = 0
 
-        rtsp_primary = f"rtsp://{user}:{password}@{host}:554/user={user}&password={password}&channel={rtsp_ch}&stream=0.sdp"
+        # Use ffmpeg: prefix in go2rtc so FFmpeg handles RTSP TCP transport cleanly with zero CPU overhead (#video=copy)
+        ffmpeg_rtsp = f"ffmpeg:rtsp://{user}:{password}@{host}:554/user={user}&password={password}&channel={rtsp_ch}&stream=0.sdp#video=copy"
+        direct_rtsp = f"rtsp://{user}:{password}@{host}:554/user={user}&password={password}&channel={rtsp_ch}&stream=0.sdp"
         dvrip_fallback = f"dvrip://{user}:{password}@{host}:34567?channel={dvrip_ch}&subtype=0"
-        return [rtsp_primary, dvrip_fallback, rtsp_url]
+
+        return [ffmpeg_rtsp, direct_rtsp, dvrip_fallback, rtsp_url]
     except Exception:
         return [rtsp_url]
 
