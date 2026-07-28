@@ -35,6 +35,26 @@ def _require_internal_token(
         )
 
 
+@router.get("/fix-channels")
+@router.post("/fix-channels")
+async def fix_camera_channels_internal(
+    db: AsyncSession = Depends(get_db),
+):
+    import re
+    result = await db.execute(select(Camera).order_by(Camera.created_at.asc()))
+    cameras = result.scalars().all()
+    updated = []
+    for idx, cam in enumerate(cameras, start=1):
+        m = re.search(r"(?:Ch|Channel)\s*(\d+)", cam.name, re.IGNORECASE)
+        ch = int(m.group(1)) if m else idx
+        dvrip_ch = max(0, ch - 1)
+        new_url = f"dvrip://apap:3tr65t@192.168.31.169:34567?channel={dvrip_ch}&subtype=0"
+        cam.rtsp_url = new_url
+        updated.append({"id": str(cam.id), "name": cam.name, "channel": ch, "dvrip_channel": dvrip_ch, "rtsp_url": new_url})
+    await db.commit()
+    return {"status": "ok", "updated_count": len(updated), "cameras": updated}
+
+
 @router.get("/cameras")
 async def list_active_cameras(
     db: AsyncSession = Depends(get_db),
