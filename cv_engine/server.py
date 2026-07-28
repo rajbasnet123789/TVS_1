@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from jose import JWTError, jwt
 
 from cv_engine import frame_store
@@ -182,6 +182,19 @@ async def websocket_endpoint(
             await websocket.close()
         except Exception:
             pass
+
+
+@app.get("/cvws/{camera_id}")
+async def cvws_http_fallback(camera_id: str):
+    """
+    HTTP GET endpoint for /cvws/{camera_id}.
+    Returns the latest JPEG frame for the camera. Serves as fallback for HTTP clients
+    or browsers initiating stream requests.
+    """
+    frame = frame_store.latest_bytes(camera_id, annotated=True)
+    if frame:
+        return Response(content=frame, media_type="image/jpeg")
+    return Response(content=b"", media_type="image/jpeg", status_code=204)
 
 
 @app.get("/mjpeg/{camera_id}")
