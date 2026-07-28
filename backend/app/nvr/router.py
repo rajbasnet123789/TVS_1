@@ -80,19 +80,19 @@ async def connect_nvr(
         resp = await dvrip_login(ip=ip, port=port, username=username, password=password)
         ch_num = int(resp.get("ChannelNum") or resp.get("ExtraChannel") or 16)
         for idx in range(1, ch_num + 1):
-            urls = build_all_rtsp_urls(host=ip, username=username, password=password, channel=idx, rtsp_port=554)
+            dvrip_ch = idx - 1
+            stream_url = f"dvrip://{username}:{password}@{ip}:{port}?channel={dvrip_ch}&subtype=0"
             channels.append(DiscoveredChannel(
                 channel=idx,
                 name=f"{data.device_name or ip} - Ch {idx}",
                 online=True,
-                rtsp_url=urls["main_stream_format_a"],
+                rtsp_url=stream_url,
             ))
-    except DVRIPAuthError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.warning("DVRIP login skipped for %s: %s, fallback to default channels", ip, e)
+        logger.warning("DVRIP login fallback for %s: %s", ip, e)
         for idx in range(1, 17):
-            stream_url = f"rtsp://{auth_str}{ip}:554/user={username}&password={password}&channel={idx}&stream=0.sdp"
+            dvrip_ch = idx - 1
+            stream_url = f"dvrip://{username}:{password}@{ip}:{port}?channel={dvrip_ch}&subtype=0"
             channels.append(DiscoveredChannel(
                 channel=idx,
                 name=f"{data.device_name or ip} - Ch {idx}",
