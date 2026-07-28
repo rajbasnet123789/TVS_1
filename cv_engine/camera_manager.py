@@ -24,20 +24,24 @@ def _format_go2rtc_src(rtsp_url: str) -> list[str]:
         password = parsed.password or ""
         host = parsed.hostname or "127.0.0.1"
 
-        channel = "1"
-        if "channel=" in rtsp_url:
+        if rtsp_url.startswith("dvrip://"):
             params = urllib.parse.parse_qs(parsed.query)
-            channel = params.get("channel", ["1"])[0]
+            dvrip_ch = int(params.get("channel", ["0"])[0])
+            rtsp_ch = dvrip_ch + 1
+        elif "channel=" in rtsp_url:
+            params = urllib.parse.parse_qs(parsed.query)
+            rtsp_ch = int(params.get("channel", ["1"])[0])
+            dvrip_ch = max(0, rtsp_ch - 1)
         elif "/ch" in parsed.path:
             import re
             m = re.search(r"ch0*(\d+)", parsed.path)
-            if m:
-                channel = m.group(1)
+            rtsp_ch = int(m.group(1)) if m else 1
+            dvrip_ch = max(0, rtsp_ch - 1)
+        else:
+            rtsp_ch = 1
+            dvrip_ch = 0
 
-        ch_num = int(channel)
-        dvrip_ch = max(0, ch_num - 1)
-
-        rtsp_primary = f"rtsp://{user}:{password}@{host}:554/user={user}&password={password}&channel={ch_num}&stream=0.sdp"
+        rtsp_primary = f"rtsp://{user}:{password}@{host}:554/user={user}&password={password}&channel={rtsp_ch}&stream=0.sdp"
         dvrip_fallback = f"dvrip://{user}:{password}@{host}:34567?channel={dvrip_ch}&subtype=0"
         return [rtsp_primary, dvrip_fallback, rtsp_url]
     except Exception:
