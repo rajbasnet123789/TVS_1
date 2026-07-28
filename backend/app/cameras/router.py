@@ -235,6 +235,7 @@ async def fix_camera_channels(
     db: AsyncSession = Depends(get_db),
 ):
     import re
+    from sqlalchemy import select
     result = await db.execute(select(Camera).order_by(Camera.created_at.asc()))
     cameras = result.scalars().all()
     updated = []
