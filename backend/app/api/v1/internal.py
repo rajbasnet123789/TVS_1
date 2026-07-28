@@ -40,19 +40,34 @@ def _require_internal_token(
 async def fix_camera_channels_internal(
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Camera).order_by(Camera.created_at.asc()))
-    cameras = result.scalars().all()
-    updated = []
-    for idx, cam in enumerate(cameras):
-        # Assign 0-indexed channel sequentially: 0, 1, 2, 3, 4...
-        dvrip_ch = idx
-        ch = idx + 1
-        new_url = f"dvrip://apap:3tr65t@192.168.31.169:34567/{dvrip_ch}"
-        cam.name = f"Camera {ch} (Ch {ch})"
-        cam.rtsp_url = new_url
-        updated.append({"id": str(cam.id), "name": cam.name, "channel": ch, "dvrip_channel": dvrip_ch, "rtsp_url": new_url})
+    from sqlalchemy import delete
+    from app.farms.models import Farm
+
+    farm_res = await db.execute(select(Farm).limit(1))
+    farm = farm_res.scalar_one_or_none()
+    farm_id = farm.id if farm else None
+
+    # Wipe all existing camera entries to guarantee zero stale worker connections
+    await db.execute(delete(Camera))
     await db.commit()
-    return {"status": "ok", "updated_count": len(updated), "cameras": updated}
+
+    # Recreate exactly 5 clean active camera entries (Channels 0..4)
+    cameras = []
+    for idx in range(5):
+        ch = idx + 1
+        cam = Camera(
+            farm_id=farm_id,
+            name=f"Camera {ch} (Ch {ch})",
+            rtsp_url=f"dvrip://apap:3tr65t@192.168.31.169:34567/{idx}",
+            location=f"NVR Channel {ch}",
+            status="online",
+            enabled=True,
+        )
+        db.add(cam)
+        cameras.append({"name": f"Camera {ch} (Ch {ch})", "dvrip_channel": idx, "rtsp_url": cam.rtsp_url})
+
+    await db.commit()
+    return {"status": "ok", "created_count": len(cameras), "cameras": cameras}
 
 
 @router.get("/reset-cameras")
