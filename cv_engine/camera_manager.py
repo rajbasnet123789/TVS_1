@@ -17,7 +17,7 @@ import json
 
 
 def _format_go2rtc_src(rtsp_url: str) -> list[str]:
-    """Format source URLs for go2rtc ingestion with dvrip and RTSP fallbacks."""
+    """Format source URLs for go2rtc ingestion matching exact TVS NVR DVRIP syntax."""
     try:
         parsed = urllib.parse.urlparse(rtsp_url)
         user = parsed.username or "admin"
@@ -36,10 +36,9 @@ def _format_go2rtc_src(rtsp_url: str) -> list[str]:
 
         ch_num = int(channel)
         dvrip_ch = max(0, ch_num - 1)
-        dvrip_url = f"dvrip://{user}:{password}@{host}:34567?channel={dvrip_ch}"
+        dvrip_url = f"dvrip://{user}:{password}@{host}:34567?channel={dvrip_ch}&subtype=0"
         rtsp_url_fmt_a = f"rtsp://{user}:{password}@{host}:554/user={user}&password={password}&channel={ch_num}&stream=0.sdp"
-        rtsp_url_fmt_b = f"rtsp://{user}:{password}@{host}:554/ch{ch_num:02d}/0"
-        return [dvrip_url, rtsp_url_fmt_a, rtsp_url_fmt_b, rtsp_url]
+        return [dvrip_url, rtsp_url_fmt_a, rtsp_url]
     except Exception:
         return [rtsp_url]
 
