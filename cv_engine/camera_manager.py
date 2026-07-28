@@ -45,14 +45,14 @@ def _format_go2rtc_src(rtsp_url: str) -> list[str]:
 
         rtsp_ch = dvrip_ch + 1
 
-        # Comprehensive Multi-Producer Fallback List
-        p1_dvrip_path = f"dvrip://{user}:{password}@{host}:34567/{dvrip_ch}"
-        p2_dvrip_query = f"dvrip://{user}:{password}@{host}:34567?channel={dvrip_ch}&subtype=0"
+        # Comprehensive Multi-Producer Fallback List — ?channel= query string MUST be first for go2rtc DVRIP module
+        p1_dvrip_query = f"dvrip://{user}:{password}@{host}:34567?channel={dvrip_ch}&subtype=0"
+        p2_dvrip_path = f"dvrip://{user}:{password}@{host}:34567/{dvrip_ch}"
         p3_rtsp_realmonitor = f"ffmpeg:rtsp://{user}:{password}@{host}:554/cam/realmonitor?channel={dvrip_ch}&subtype=0#video=copy#transport=tcp"
         p4_rtsp_fmt_a = f"ffmpeg:rtsp://{user}:{password}@{host}:554/user={user}&password={password}&channel={rtsp_ch}&stream=0.sdp#video=copy#transport=tcp"
         p5_rtsp_fmt_b = f"ffmpeg:rtsp://{user}:{password}@{host}:554/ch{rtsp_ch:02d}/0#video=copy#transport=tcp"
 
-        return [p1_dvrip_path, p2_dvrip_query, p3_rtsp_realmonitor, p4_rtsp_fmt_a, p5_rtsp_fmt_b, rtsp_url]
+        return [p1_dvrip_query, p2_dvrip_path, p3_rtsp_realmonitor, p4_rtsp_fmt_a, p5_rtsp_fmt_b, rtsp_url]
     except Exception:
         return [rtsp_url]
 
