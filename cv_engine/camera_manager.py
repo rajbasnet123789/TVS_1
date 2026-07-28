@@ -18,19 +18,26 @@ import json
 
 def _format_go2rtc_src(rtsp_url: str) -> str:
     """Format source URL for go2rtc ingestion — uses dvrip:// for TVS NVR binary TCP on port 34567."""
-    if "34567" in rtsp_url or "dvrip" in rtsp_url.lower():
-        try:
-            parsed = urllib.parse.urlparse(rtsp_url)
+    try:
+        parsed = urllib.parse.urlparse(rtsp_url)
+        user = parsed.username or "admin"
+        password = parsed.password or ""
+        host = parsed.hostname or "127.0.0.1"
+
+        # Extract channel number from query params (channel=X) or path (/ch0X / /0)
+        channel = "1"
+        if "channel=" in rtsp_url:
             params = urllib.parse.parse_qs(parsed.query)
-            channel = params.get("channel", ["0"])[0]
-            user = parsed.username or "admin"
-            password = parsed.password or ""
-            host = parsed.hostname or "127.0.0.1"
-            port = parsed.port or 34567
-            return f"dvrip://{user}:{password}@{host}:{port}/{channel}"
-        except Exception:
-            pass
-    return rtsp_url
+            channel = params.get("channel", ["1"])[0]
+        elif "/ch" in parsed.path:
+            import re
+            m = re.search(r"ch0*(\d+)", parsed.path)
+            if m:
+                channel = m.group(1)
+
+        return f"dvrip://{user}:{password}@{host}:34567/{channel}"
+    except Exception:
+        return rtsp_url
 
 
 def _register_go2rtc_stream(camera_id: str, rtsp_url: str) -> str:
