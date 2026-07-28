@@ -1,0 +1,9 @@
+# go2rtc configuration file for TVS_1 poultry monitoring system
+api:
+  listen: ":1984"
+
+rtsp:
+  listen: ":8554"
+
+log:
+  level: info

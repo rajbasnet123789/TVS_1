@@ -94,6 +94,18 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  go2rtc:
+    image: alexxit/go2rtc:latest
+    network_mode: host
+    volumes:
+      - ./go2rtc/go2rtc.yaml:/config/go2rtc.yaml:ro
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   cv-engine:
     build:
       context: .
@@ -112,6 +124,8 @@ services:
       INFLUX_ORG: poultry
       INFLUX_BUCKET: detections
       BUSINESS_BACKEND_URL: http://localhost:18000
+      GO2RTC_API_URL: http://localhost:1984
+      GO2RTC_RTSP_URL: rtsp://localhost:8554
       JWT_SECRET: ${JWT_SECRET}
       JWT_ALGORITHM: HS256
       MQTT_BROKER: localhost
