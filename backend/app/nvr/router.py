@@ -161,8 +161,25 @@ async def register_nvr_cameras(
 
     registered = []
     for cam in data.cameras:
+        username = data.username or "admin"
+        password = data.password or ""
+        ch_num = int(cam.channel)
+        dvrip_ch = max(0, ch_num - 1)
+
+        # Always build exact DVRIP URL with correct channel offset for TVS NVR
+        if "192.168" in cam.rtsp_url or "34567" in cam.rtsp_url or "/user=" in cam.rtsp_url:
+            parsed_host = "192.168.31.169"
+            if "@" in cam.rtsp_url:
+                try:
+                    parsed_host = cam.rtsp_url.split("@")[1].split(":")[0].split("/")[0]
+                except Exception:
+                    pass
+            rtsp_url = f"dvrip://{username}:{password}@{parsed_host}:34567?channel={dvrip_ch}&subtype=0"
+        else:
+            rtsp_url = cam.rtsp_url
+
         existing = await db.execute(
-            select(Camera).where(Camera.rtsp_url == cam.rtsp_url, Camera.farm_id == farm_uuid)
+            select(Camera).where(Camera.rtsp_url == rtsp_url, Camera.farm_id == farm_uuid)
         )
         if existing.scalar_one_or_none():
             continue
@@ -171,11 +188,11 @@ async def register_nvr_cameras(
         camera = Camera(
             farm_id=farm_uuid,
             name=cam.name,
-            rtsp_url=cam.rtsp_url,
-            location=f"NVR Channel {cam.channel}",
+            rtsp_url=rtsp_url,
+            location=f"NVR Channel {ch_num}",
             status="online" if cam.online else "offline",
-            username=data.username,
-            password_hash=encrypt_camera_password(data.password) if data.password else None,
+            username=username,
+            password_hash=encrypt_camera_password(password) if password else None,
             enabled=True,
         )
         db.add(camera)
