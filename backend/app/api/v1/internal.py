@@ -48,7 +48,7 @@ async def fix_camera_channels_internal(
         m = re.search(r"(?:Ch|Channel)\s*(\d+)", cam.name, re.IGNORECASE)
         ch = int(m.group(1)) if m else idx
         dvrip_ch = max(0, ch - 1)
-        new_url = f"rtsp://apap:3tr65t@192.168.31.169:554/cam/realmonitor?channel={dvrip_ch}&subtype=0"
+        new_url = f"dvrip://apap:3tr65t@192.168.31.169:34567/{dvrip_ch}"
         cam.rtsp_url = new_url
         updated.append({"id": str(cam.id), "name": cam.name, "channel": ch, "dvrip_channel": dvrip_ch, "rtsp_url": new_url})
     await db.commit()

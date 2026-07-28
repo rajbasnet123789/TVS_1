@@ -17,30 +17,38 @@ import json
 
 
 def _format_go2rtc_src(rtsp_url: str) -> list[str]:
-    """Format source URLs for go2rtc ingestion — user specified realmonitor format."""
+    """Format source URLs for go2rtc ingestion using native TVS DVRIP format (dvrip://user:pass@host:34567/channel)."""
     try:
         parsed = urllib.parse.urlparse(rtsp_url)
         user = parsed.username or "admin"
         password = parsed.password or ""
         host = parsed.hostname or "127.0.0.1"
+        port = parsed.port or 34567
 
-        if "channel=" in rtsp_url:
+        # Extract channel index (0-indexed: 0, 1, 2, 3, 4...)
+        dvrip_ch = 0
+        if rtsp_url.startswith("dvrip://"):
+            parts = parsed.path.strip("/").split("/")
+            if parts and parts[0].isdigit():
+                dvrip_ch = int(parts[0])
+            elif "channel=" in rtsp_url:
+                params = urllib.parse.parse_qs(parsed.query)
+                dvrip_ch = int(params.get("channel", ["0"])[0])
+        elif "channel=" in rtsp_url:
             params = urllib.parse.parse_qs(parsed.query)
-            ch_val = int(params.get("channel", ["0"])[0])
-            dvrip_ch = ch_val if rtsp_url.startswith("dvrip://") or "realmonitor" in rtsp_url else max(0, ch_val - 1)
+            ch_val = int(params.get("channel", ["1"])[0])
+            dvrip_ch = max(0, ch_val - 1)
         elif "/ch" in parsed.path:
             import re
             m = re.search(r"ch0*(\d+)", parsed.path)
-            dvrip_ch = max(0, (int(m.group(1)) if m else 1) - 1)
-        else:
-            dvrip_ch = 0
+            if m:
+                dvrip_ch = max(0, int(m.group(1)) - 1)
 
-        # Exact user requested format: /cam/realmonitor?channel=N&subtype=0
-        realmonitor_url = f"rtsp://{user}:{password}@{host}:554/cam/realmonitor?channel={dvrip_ch}&subtype=0"
-        ffmpeg_realmonitor = f"ffmpeg:{realmonitor_url}#video=copy#transport=tcp"
-        dvrip_fallback = f"dvrip://{user}:{password}@{host}:34567?channel={dvrip_ch}&subtype=0"
+        # Native TVS NVR DVRIP format: dvrip://user:pass@host:34567/{channel}
+        dvrip_url_path = f"dvrip://{user}:{password}@{host}:{port}/{dvrip_ch}"
+        dvrip_url_query = f"dvrip://{user}:{password}@{host}:{port}?channel={dvrip_ch}&subtype=0"
 
-        return [ffmpeg_realmonitor, realmonitor_url, dvrip_fallback, rtsp_url]
+        return [dvrip_url_path, dvrip_url_query, rtsp_url]
     except Exception:
         return [rtsp_url]
 
