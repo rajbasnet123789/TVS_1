@@ -94,11 +94,22 @@ async def is_token_blacklisted(token: str) -> bool:
     return token in BLACKLISTED_TOKENS
 
 
-async def is_refresh_token_used(token: str) -> bool:
+import time
+
+
+async def is_refresh_token_used(token: str, grace_seconds: float = 30.0) -> bool:
     try:
         r = get_redis()
-        exists = await r.exists(f"rtu:{token}")
-        if exists:
+        val = await r.get(f"rtu:{token}")
+        if val is not None:
+            try:
+                # Decoded val is stored as float timestamp string
+                used_at = float(val.decode("utf-8") if isinstance(val, bytes) else val)
+                if time.time() - used_at <= grace_seconds:
+                    logger.info("Refresh token reused within 30s grace period — allowing concurrent refresh")
+                    return False
+            except (ValueError, TypeError):
+                pass
             return True
     except Exception:
         logger.exception("Redis error while checking if refresh token is used: %s", token)
@@ -108,7 +119,8 @@ async def is_refresh_token_used(token: str) -> bool:
 async def mark_refresh_token_used(token: str):
     try:
         r = get_redis()
-        await r.setex(f"rtu:{token}", settings.refresh_token_expire_days * 86400, "1")
+        now_str = str(time.time())
+        await r.setex(f"rtu:{token}", settings.refresh_token_expire_days * 86400, now_str)
     except Exception:
         logger.exception("Redis error while marking refresh token as used: %s", token)
         USED_REFRESH_TOKENS.add(token)

@@ -52,14 +52,12 @@ async def fix_camera_channels_internal(
     await db.commit()
 
     # Recreate exactly 5 clean camera entries.
-    # go2rtc is pre-configured with ch0..ch4 streams pointing to the Dahua NVR via
-    # dvrip:// + ffmpeg:rtsp://...realmonitor (correct Dahua format).
-    # cv-engine consumes from go2rtc RTSP re-streams — no direct NVR access needed.
+    # go2rtc is pre-configured with ch1..ch5 streams pointing to physical Dahua NVR channels 1..5.
+    # Note: channel=0 on Dahua is the multi-picture Zero Channel and is avoided.
     cameras = []
     for idx in range(5):
-        ch_label = idx + 1  # Display: Ch 1 .. Ch 5
-        # go2rtc stream name matches go2rtc.yaml keys: ch0, ch1, ch2, ch3, ch4
-        stream_url = f"rtsp://localhost:8554/ch{idx}"
+        ch_label = idx + 1  # Display: Ch 1 .. Ch 5 (matches NVR channels 1..5)
+        stream_url = f"rtsp://localhost:8554/ch{ch_label}"
         cam = Camera(
             farm_id=farm_id,
             name=f"192.168.31.169 - Ch {ch_label}",
@@ -71,7 +69,7 @@ async def fix_camera_channels_internal(
         db.add(cam)
         cameras.append({
             "name": f"192.168.31.169 - Ch {ch_label}",
-            "go2rtc_stream": f"ch{idx}",
+            "go2rtc_stream": f"ch{ch_label}",
             "rtsp_url": stream_url,
         })
 

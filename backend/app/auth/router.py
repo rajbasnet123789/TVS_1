@@ -239,6 +239,7 @@ async def logout(
     if token:
         await blacklist_token(token)
     response.delete_cookie(key="access_token", path="/")
+    response.delete_cookie(key="refresh_token", path="/")
     response.delete_cookie(key="refresh_token", path="/api/v1/auth")
     return {"message": "Logged out successfully"}
 
