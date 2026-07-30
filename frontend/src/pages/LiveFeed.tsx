@@ -96,7 +96,7 @@ export default function LiveFeed() {
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.5 }}>Live Feed</Typography>
           <Typography variant="body2" color="text.secondary">
-            {cameras.length > 0 ? `Real-time video feeds from ${cameras.length} camera${cameras.length !== 1 ? 's' : ''}` : 'No cameras configured yet'}
+            {cameras.length > 0 ? `Detection counts from ${cameras.length} camera${cameras.length !== 1 ? 's' : ''}. Click a camera to view live feed.` : 'No cameras configured yet'}
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1.5, width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'flex-start', sm: 'flex-end' }, flexWrap: 'wrap' }}>

@@ -26,12 +26,12 @@ interface AddDeviceModalProps {
 }
 
 export function AddDeviceModal({ open, onClose, onSuccess }: AddDeviceModalProps) {
-  const { farms } = useAuth()
+  const { farms, currentFarm } = useAuth()
   const [tab, setTab] = useState<number>(0) // 0 = Manual Add, 1 = Auto Discover
 
   // Form State (matching user screenshot)
   const [deviceName, setDeviceName] = useState('192.168.31.169')
-  const [selectedGroup, setSelectedGroup] = useState<string>(farms[0]?.id || 'default')
+  const [selectedGroup, setSelectedGroup] = useState<string>(currentFarm?.id || farms[0]?.id || 'default')
   const [loginType, setLoginType] = useState('IP Address')
   const [ip, setIp] = useState('192.168.31.169')
   const [port, setPort] = useState('34567')
@@ -110,7 +110,7 @@ export function AddDeviceModal({ open, onClose, onSuccess }: AddDeviceModalProps
     setRegistering(true)
     setError('')
     try {
-      const targetFarmId = selectedGroup !== 'default' && selectedGroup ? selectedGroup : farms[0]?.id
+      const targetFarmId = selectedGroup !== 'default' && selectedGroup ? selectedGroup : currentFarm?.id || farms[0]?.id
       if (!targetFarmId) {
         setError('Please select a valid Farm / Group.')
         setRegistering(false)

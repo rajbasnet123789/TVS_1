@@ -178,7 +178,6 @@ class CameraManager:
                 proc.join(timeout=3)
 
         frame_store.publish(camera_id, b"")
-        frame_store.publish_annotated(camera_id, b"")
         logger.info("Stopped camera worker for %s", camera_id)
 
     def stop_all(self) -> None:

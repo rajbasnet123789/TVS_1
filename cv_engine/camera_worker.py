@@ -1,5 +1,4 @@
 import logging
-import multiprocessing
 import time
 import typing
 
@@ -48,7 +47,7 @@ def _worker_main(
     max_backoff = 10.0
 
     while not stop_event.is_set():
-        raw = frame_store.latest_bytes(camera_id, annotated=False)
+        raw = frame_store.latest_bytes(camera_id)
         if not raw:
             time.sleep(0.1)
             continue
@@ -66,29 +65,16 @@ def _worker_main(
             conf_threshold=settings.DETECTION_CONFIDENCE,
         )
 
-        annotated = frame.copy()
         event_batch = []
 
         for det in detections:
             cx, cy, w, h = det["x"], det["y"], det["w"], det["h"]
-            x1 = int(cx - w / 2)
-            y1 = int(cy - h / 2)
-            x2 = int(cx + w / 2)
-            y2 = int(cy + h / 2)
 
             if roi_polygon is not None:
                 contour = np.array(roi_polygon, dtype=np.float32)
                 dist = cv2.pointPolygonTest(contour, (cx, cy), False)
                 if dist < 0:
                     continue
-
-            color = (0, 255, 0)
-            cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
-            label = f"ID:{det['track_id']} {det['class_name']} {det['confidence']:.2f}"
-            cv2.putText(
-                annotated, label, (x1, y1 - 10),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1,
-            )
 
             event_batch.append({
                 "camera_id": camera_id,
@@ -101,31 +87,6 @@ def _worker_main(
                 "w": w,
                 "h": h,
             })
-
-        _, buf = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 85])
-        frame_store.publish_annotated(camera_id, buf.tobytes())
-
-        frame_store.publish_metadata(camera_id, {
-            "type": "detections",
-            "camera_id": camera_id,
-            "width": frame.shape[1],
-            "height": frame.shape[0],
-            "detections": [
-                {
-                    "track_id": d["track_id"],
-                    "class_name": d["class_name"],
-                    "confidence": round(d["confidence"], 3),
-                    "bbox": {
-                        "x": round(d["x"] - d["w"] / 2, 1),
-                        "y": round(d["y"] - d["h"] / 2, 1),
-                        "w": round(d["w"], 1),
-                        "h": round(d["h"], 1),
-                    },
-                }
-                for d in event_batch
-            ],
-            "_mtime": time.time(),
-        })
 
         for event in event_batch:
             try:

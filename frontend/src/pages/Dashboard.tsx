@@ -30,6 +30,7 @@ import BusinessIcon from '@mui/icons-material/Business'
 import api from '../api/axios'
 import { StatCard } from '../components/StatCard'
 import { CameraFeed } from '../components/CameraFeed'
+import { CameraVideoModal } from '../components/CameraVideoModal'
 import { useWebSocket } from '../hooks/useWebSocket'
 import { useAuth } from '../auth/AuthContext'
 import { useCameras } from '../hooks/useCameras'
@@ -63,6 +64,7 @@ export default function Dashboard() {
 
   const [activeCoops, setActiveCoops] = useState<Record<string, boolean>>({})
   const activeCoopTimeouts = useRef<Record<string, number>>({})
+  const [modalCam, setModalCam] = useState<{ id: string; name: string } | null>(null)
 
   // Calculate dynamic initials
   const initials = user?.full_name?.split(' ').map((n) => n[0]).join('').toUpperCase() || 'SA'
@@ -734,24 +736,23 @@ export default function Dashboard() {
             </Card>
           </Grid>
 
-          {/* C. Global Video Wall */}
-          {cameras.filter((c: any) => c.status === 'online').length > 0 && (
+          {/* C. Global Camera Counts */}
+          {cameras.length > 0 && (
             <Grid item xs={12} sx={{ mt: 1 }}>
               <Card sx={{ p: 2.5 }}>
                 <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, letterSpacing: '0.08em', fontSize: '0.7rem', display: 'block', mb: 2 }}>
-                  GLOBAL VIDEO WALL
+                  GLOBAL CAMERA COUNTS
                 </Typography>
                 <Grid container spacing={2}>
-                  {cameras.filter((c: any) => c.status === 'online').slice(0, 6).map((cam: any) => (
+                  {cameras.slice(0, 6).map((cam: any) => (
                     <Grid item xs={12} sm={6} md={4} key={cam.id}>
-                      <Box sx={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid #e2e8f0', aspectRatio: '16/9' }}>
-                        <CameraFeed
-                          id={cam.id}
-                          name={`${cam.name} (${farms.find((f: any) => f.id === cam.farm_id)?.name || 'Unknown'})`}
-                          status={cam.status}
-                          compact
-                        />
-                      </Box>
+                      <CameraFeed
+                        id={cam.id}
+                        name={`${cam.name} (${farms.find((f: any) => f.id === cam.farm_id)?.name || 'Unknown'})`}
+                        status={cam.status}
+                        compact
+                        onClick={() => setModalCam({ id: cam.id, name: cam.name })}
+                      />
                     </Grid>
                   ))}
                 </Grid>
@@ -869,7 +870,7 @@ export default function Dashboard() {
             </Card>
           </Grid>
 
-          {/* B. Live Cameras Card */}
+          {/* B. Live Camera Counts */}
           <Grid item xs={12} md={6} lg={3.5}>
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 2.5 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
@@ -878,7 +879,7 @@ export default function Dashboard() {
                     LIVE CAMERAS
                   </Typography>
                   <Typography variant="h6" sx={{ fontWeight: 700, color: '#0f172a', fontSize: '1rem', mt: 0.1, fontFamily: '"Outfit", sans-serif' }}>
-                    Feed viewport channels
+                    Click a camera to view live feed
                   </Typography>
                 </Box>
                 <Button 
@@ -899,57 +900,19 @@ export default function Dashboard() {
                 </Button>
               </Box>
 
-              {/* Cameras viewport list */}
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1, justifyContent: 'center' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, flexGrow: 1 }}>
                 {slots.map((slot) => {
                   const cam = cameras.find((c: any) => c.id === slot.id)
                   if (!cam) return null
-
                   return (
-                    <Box key={cam.id} sx={{ position: 'relative', borderRadius: '12px', overflow: 'hidden' }}>
-                      {cam.status === 'online' ? (
-                        <Box sx={{ width: '100%', aspectRatio: '16/9' }}>
-                          <CameraFeed
-                            id={cam.id}
-                            name={cam.name}
-                            status={cam.status}
-                            compact
-                          />
-                        </Box>
-                      ) : (
-                        <Box 
-                          sx={{ 
-                            bgcolor: '#f8fafc', 
-                            borderRadius: '12px', 
-                            p: 2, 
-                            aspectRatio: '16/9',
-                            position: 'relative', 
-                            display: 'flex', 
-                            flexDirection: 'column', 
-                            justifyContent: 'center', 
-                            alignItems: 'center',
-                            border: '1px solid #e2e8f0'
-                          }}
-                        >
-                          <Box sx={{ position: 'absolute', top: 10, left: 12 }}>
-                            <Typography variant="caption" sx={{ fontWeight: 700, color: '#334155', fontSize: '0.75rem', fontFamily: '"Outfit", sans-serif' }}>
-                              {cam.name}
-                            </Typography>
-                          </Box>
-                          <Box sx={{ position: 'absolute', top: 10, right: 12 }}>
-                            <Box sx={{ bgcolor: '#fee2e2', border: '1px solid #fecaca', px: 1, py: 0.1, borderRadius: '4px' }}>
-                              <Typography variant="caption" sx={{ color: '#ef4444', fontWeight: 800, fontSize: '0.6rem' }}>
-                                OFFLINE
-                              </Typography>
-                            </Box>
-                          </Box>
-                          <VideocamOffOutlinedIcon sx={{ fontSize: '1.75rem', color: '#94a3b8', mb: 0.5 }} />
-                          <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, fontSize: '0.75rem', fontFamily: '"Inter", sans-serif' }}>
-                            No Signal
-                          </Typography>
-                        </Box>
-                      )}
-                    </Box>
+                    <CameraFeed
+                      key={cam.id}
+                      id={cam.id}
+                      name={cam.name}
+                      status={cam.status}
+                      compact
+                      onClick={() => setModalCam({ id: cam.id, name: cam.name })}
+                    />
                   )
                 })}
               </Box>
@@ -1191,6 +1154,15 @@ export default function Dashboard() {
             </Card>
           </Grid>
         </Grid>
+      )}
+
+      {modalCam && (
+        <CameraVideoModal
+          cameraId={modalCam.id}
+          cameraName={modalCam.name}
+          open
+          onClose={() => setModalCam(null)}
+        />
       )}
     </Box>
   )
