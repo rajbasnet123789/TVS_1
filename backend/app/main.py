@@ -93,16 +93,6 @@ async def lifespan(app: FastAPI):
         await seed_roles(db)
         await seed_default_farm(db)
         await seed_super_admin(db)
-        from sqlalchemy import select
-        from app.cameras.models import Camera
-        import re
-        result = await db.execute(select(Camera))
-        cameras = result.scalars().all()
-        for idx, cam in enumerate(cameras, start=1):
-            match = re.search(r"(?:Ch|Channel)\s*(\d+)", cam.name, re.IGNORECASE)
-            ch_num = int(match.group(1)) if match else idx
-            cam.rtsp_url = f"rtsp://apap:3tr65t@192.168.31.169:554/user=apap&password=3tr65t&channel={ch_num}&stream=0.sdp"
-        await db.commit()
 
     from app.alerts.rules import alert_evaluator
     await alert_evaluator.start()

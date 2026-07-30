@@ -22,4 +22,5 @@ COPY --chown=appuser:appuser backend/ .
 RUN pip install --no-cache-dir --default-timeout=1000 --retries=10 --upgrade pip setuptools wheel
 RUN pip install --no-cache-dir --default-timeout=1000 --retries=10 -e "."
 USER appuser
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
