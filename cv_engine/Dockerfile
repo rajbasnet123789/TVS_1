@@ -17,7 +17,7 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 WORKDIR /app
 
 COPY cv_engine/requirements.txt ./cv_engine/requirements.txt
-RUN pip3 install --no-cache-dir -r cv_engine/requirements.txt
+RUN pip3 install --no-cache-dir -r cv_engine/requirements.txt --extra-index-url https://download.pytorch.org/whl/cu121
 
 COPY cv_engine/ ./cv_engine/
 

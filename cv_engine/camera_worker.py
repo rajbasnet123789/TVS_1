@@ -5,6 +5,7 @@ import typing
 
 import cv2
 import numpy as np
+import torch
 from ultralytics import YOLO
 
 from cv_engine import frame_store
@@ -23,10 +24,20 @@ def _worker_main(
     stop_event: typing.Any,
 ) -> None:
     logging.basicConfig(level=logging.INFO)
-    logger.info("CameraWorker started for %s", camera_id)
+
+    cuda_available = torch.cuda.is_available()
+    device = "cuda:0" if cuda_available else "cpu"
+    logger.info(
+        "CameraWorker starting for %s on device=%s (CUDA available: %s, Device count: %d)",
+        camera_id,
+        device,
+        cuda_available,
+        torch.cuda.device_count() if cuda_available else 0,
+    )
 
     model = YOLO(settings.MODEL_PATH)
-    tracker = ObjectTracker(model)
+    model.to(device)
+    tracker = ObjectTracker(model, device=device)
     from cv_engine.stream_manager import RtspCameraStream
 
     stream = RtspCameraStream(camera_id, rtsp_url)

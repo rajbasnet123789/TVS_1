@@ -157,8 +157,8 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+              count: all
+              capabilities: [gpu, utility]
     restart: unless-stopped
     logging:
       driver: json-file
