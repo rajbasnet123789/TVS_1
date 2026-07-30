@@ -72,7 +72,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => { fetchUser() }, [fetchUser])
 
   const login = async (email: string, password: string) => {
-    const { data } = await api.post<TokenResponse>('/auth/login', { email, password })
+    const cleanEmail = email.trim().toLowerCase()
+    const { data } = await api.post<TokenResponse>('/auth/login', { email: cleanEmail, password })
     await fetchUser()
   }
 

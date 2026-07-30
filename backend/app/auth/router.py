@@ -1,7 +1,7 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone, timedelta
@@ -121,7 +121,8 @@ async def register(
     db: AsyncSession = Depends(get_db),
     admin_user: User = Depends(require_permission("users:write")),
 ):
-    result = await db.execute(select(User).where(User.email == data.email))
+    clean_email = data.email.strip().lower()
+    result = await db.execute(select(User).where(func.lower(User.email) == clean_email))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
@@ -144,7 +145,7 @@ async def register(
             detail="farm_id required for non-super_admin users",
         )
     user = User(
-        email=data.email,
+        email=clean_email,
         hashed_password=hash_password(data.password),
         full_name=data.full_name,
         role_id=role.id,
@@ -161,7 +162,8 @@ async def register(
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")
 async def login(request: Request, response: Response, data: LoginRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == data.email))
+    clean_email = data.email.strip().lower()
+    result = await db.execute(select(User).where(func.lower(User.email) == clean_email))
     user = result.scalar_one_or_none()
     
     if not user or not verify_password(data.password, user.hashed_password):
