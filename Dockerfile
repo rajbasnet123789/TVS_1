@@ -14,6 +14,8 @@ CMD ["nginx", "-g", "daemon off;"]
 
 FROM python:3.11-slim AS backend
 WORKDIR /app
+# Install curl for the Docker healthcheck (python subprocess is too slow to stay under timeout)
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 COPY backend/pyproject.toml .
 RUN useradd --system --create-home appuser
 COPY --chown=appuser:appuser backend/ .

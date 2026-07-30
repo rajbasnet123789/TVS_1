@@ -53,18 +53,23 @@ def query_detection_stats(camera_id: str) -> dict:
         for record in table.records:
             total += record.get_value() or 0
 
+    # track_id is a TAG — distinct() only works on fields.
+    # Count unique tag values by grouping per track_id, then counting the groups.
     unique_query = f'''
         from(bucket: "{settings.influx_bucket}")
             |> range(start: -5m)
-            |> filter(fn: (r) => r["camera_id"] == "{camera_id}")
-            |> distinct(column: "track_id")
+            |> filter(fn: (r) => r["camera_id"] == "{camera_id}" and r["track_id"] != "-1" and r["_field"] == "confidence")
+            |> group(columns: ["track_id"])
+            |> count()
+            |> group()
+            |> count()
     '''
-    unique_ids = set()
+    unique_count = 0
     for table in client.query_api().query(unique_query):
         for record in table.records:
-            unique_ids.add(record.get_value())
+            unique_count = record.get_value() or 0
 
-    return {"total": total, "unique": len(unique_ids), "per_minute": round(total / 5, 1)}
+    return {"total": total, "unique": unique_count, "per_minute": round(total / 5, 1)}
 
 
 def validate_time_param(value: str, name: str) -> str:
@@ -84,14 +89,14 @@ def validate_window(value: str) -> str:
 
 
 def _query_headcount_snapshot(client: InfluxDBClient, camera_id: str | None, start: str, end: str) -> list[dict]:
-    filter_clause = 'r["track_id"] != "-1"'
-    if camera_id:
-        filter_clause = f'r["camera_id"] == "{camera_id}" and r["track_id"] != "-1"'
+    # track_id is a TAG — must group by it to count uniques, then re-count groups.
+    cam_filter = f'r["camera_id"] == "{camera_id}" and ' if camera_id else ''
     query = f'''
         from(bucket: "{settings.influx_bucket}")
             |> range(start: {start}, stop: {end})
-            |> filter(fn: (r) => {filter_clause})
-            |> distinct(column: "track_id")
+            |> filter(fn: (r) => {cam_filter}r["track_id"] != "-1" and r["_field"] == "confidence")
+            |> group(columns: ["track_id"])
+            |> count()
             |> group()
             |> count()
     '''
@@ -162,19 +167,20 @@ def query_detection_summary(
         for record in table.records:
             total += record.get_value() or 0
 
+    # track_id is a TAG — distinct() only works on fields. Group by tag to count uniques.
     unique_query = f'''
         from(bucket: "{settings.influx_bucket}")
             |> range(start: {start}, stop: {end})
-            |> filter(fn: (r) => r["camera_id"] == "{camera_id}")
+            |> filter(fn: (r) => r["camera_id"] == "{camera_id}" and r["track_id"] != "-1" and r["_field"] == "confidence")
+            |> group(columns: ["track_id"])
+            |> count()
             |> group()
-            |> distinct(column: "track_id")
+            |> count()
     '''
-    unique_ids = set()
+    unique_count = 0
     for table in client.query_api().query(unique_query):
         for record in table.records:
-            val = record.get_value()
-            if val and val != "-1":
-                unique_ids.add(val)
+            unique_count = record.get_value() or 0
 
     window_counts_query = f'''
         from(bucket: "{settings.influx_bucket}")
@@ -188,12 +194,13 @@ def query_detection_summary(
         for record in table.records:
             window_counts.append(record.get_value() or 0)
 
+    # track_id is a TAG — group-per-tag + count is the correct pattern
     peak_hc_query = f'''
         from(bucket: "{settings.influx_bucket}")
             |> range(start: {start}, stop: {end})
-            |> filter(fn: (r) => r["camera_id"] == "{camera_id}" and r["track_id"] != "-1")
-            |> group()
-            |> distinct(column: "track_id")
+            |> filter(fn: (r) => r["camera_id"] == "{camera_id}" and r["track_id"] != "-1" and r["_field"] == "confidence")
+            |> group(columns: ["track_id"])
+            |> count()
             |> group()
             |> count()
     '''
@@ -220,7 +227,7 @@ def query_detection_summary(
 
     return {
         "total_detections": total,
-        "unique_chickens": len(unique_ids),
+        "unique_chickens": unique_count,
         "peak_head_count": peak_hc,
         "avg_confidence": round(avg_conf, 3),
         "active_minutes": active_minutes,

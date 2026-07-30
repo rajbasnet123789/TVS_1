@@ -103,6 +103,42 @@ async def reset_user_password_internal(
     return {"status": "ok", "message": f"Password for {email} updated successfully"}
 
 
+@router.patch("/cameras/status")
+async def update_camera_statuses(
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_require_internal_token),
+):
+    """cv-engine calls this after each sync to report which camera workers are running.
+
+    Expected body: {"running": ["<camera_id>", ...], "stopped": ["<camera_id>", ...]}
+    """
+    from sqlalchemy import update as sa_update
+
+    running_ids = body.get("running", [])
+    stopped_ids = body.get("stopped", [])
+
+    if running_ids:
+        await db.execute(
+            sa_update(Camera)
+            .where(Camera.id.in_(running_ids))
+            .values(status="online")
+        )
+    if stopped_ids:
+        await db.execute(
+            sa_update(Camera)
+            .where(Camera.id.in_(stopped_ids))
+            .values(status="offline")
+        )
+    await db.commit()
+    logger.info(
+        "Camera status updated: %d online, %d offline",
+        len(running_ids),
+        len(stopped_ids),
+    )
+    return {"ok": True, "online": len(running_ids), "offline": len(stopped_ids)}
+
+
 @router.get("/cameras")
 async def list_active_cameras(
     db: AsyncSession = Depends(get_db),

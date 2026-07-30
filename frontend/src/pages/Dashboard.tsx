@@ -108,13 +108,18 @@ export default function Dashboard() {
         setDetectedChickens(detected)
 
         const onlineCamerasList = cameras.filter((c: any) => c && c.status === 'online')
+        // Fallback: if no cameras have status 'online' yet (status updates after first cv-engine sync),
+        // use all enabled cameras so the count doesn't stay stuck at 0.
+        const camerasToQuery = onlineCamerasList.length > 0
+          ? onlineCamerasList
+          : cameras.filter((c: any) => c && c.enabled !== false)
 
         let totalDetections = 0
         let uniqueChickensCount = 0
 
-        if (onlineCamerasList.length > 0) {
+        if (camerasToQuery.length > 0) {
           await Promise.all(
-            onlineCamerasList.slice(0, 5).map(async (c: any) => {
+            camerasToQuery.slice(0, 5).map(async (c: any) => {
               try {
                 const { data } = await api.get(`/cameras/${c.id}/detection/stats`)
                 totalDetections += data?.total_detections || 0
@@ -130,8 +135,14 @@ export default function Dashboard() {
           (uniqueChickensCount > 0 ? 40 : 0)
         ))
 
+        // Prefer uniqueChickensCount (from InfluxDB track IDs) as the authoritative live count.
+        // Fall back to detected.length (historical list) if InfluxDB has no recent data.
+        const chickenCount = uniqueChickensCount > 0
+          ? uniqueChickensCount
+          : (detected.length > 0 ? detected.length : 0)
+
         setStats({
-          chickens: detected.length > 0 ? detected.length : (uniqueChickensCount || 0),
+          chickens: chickenCount,
           cameras: cameras.length,
           onlineCameras: onlineCamerasList.length,
           healthyPct,

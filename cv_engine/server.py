@@ -49,6 +49,29 @@ def _validate_token(token: str) -> dict | None:
         return None
 
 
+async def _report_camera_statuses() -> None:
+    """Report which camera workers are running back to the backend so camera.status is kept accurate in PostgreSQL."""
+    if _camera_manager is None:
+        return
+    headers: dict[str, str] = {}
+    if settings.CV_ENGINE_API_KEY:
+        headers["X-Internal-Token"] = settings.CV_ENGINE_API_KEY
+
+    worker_status = _camera_manager.get_status()
+    running_ids = [cid for cid, info in worker_status.items() if info.get("running")]
+    stopped_ids = [cid for cid, info in worker_status.items() if not info.get("running")]
+
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            await client.patch(
+                f"{settings.BUSINESS_BACKEND_URL}/v1/internal/cameras/status",
+                headers={**headers, "Content-Type": "application/json"},
+                json={"running": running_ids, "stopped": stopped_ids},
+            )
+    except Exception as e:
+        logger.warning("Failed to report camera statuses: %s", e)
+
+
 async def _sync_cameras_loop() -> None:
     backoff = 1.0
     max_backoff = 30.0
@@ -66,6 +89,8 @@ async def _sync_cameras_loop() -> None:
                 cameras = resp.json().get("cameras", [])
                 _camera_manager.sync_cameras(cameras)
                 backoff = 1.0
+                # Report running/stopped workers back to backend so camera.status stays accurate
+                await _report_camera_statuses()
         except Exception as e:
             logger.warning("Camera sync failed: %s, retrying in %.0fs", e, backoff)
             backoff = min(backoff * 2, max_backoff)
