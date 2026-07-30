@@ -217,7 +217,7 @@ async def refresh(request: Request, response: Response, data: TokenRefreshReques
     access_token = create_access_token(str(user.id), role.name if role else "viewer", farm_id=farm_id)
     refresh_token = create_refresh_token(str(user.id))
     _set_auth_cookies(response, access_token, refresh_token)
-    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token, must_change_password=user.must_change_password)
 
 
 security_scheme = HTTPBearer(auto_error=False)
