@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.auth.deps import get_farm_id, require_permission
@@ -17,7 +18,7 @@ async def get_detected_chickens(
     try:
         from app.detection.queries import query_detected_chickens
 
-        results = query_detected_chickens(start, end, farm_id=farm_id)
+        results = await asyncio.to_thread(query_detected_chickens, start, end, farm_id=farm_id)
         return [DetectedChicken(**r) for r in results]
     except ImportError:
         return []

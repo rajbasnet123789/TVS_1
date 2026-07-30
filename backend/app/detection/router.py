@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 
@@ -98,7 +99,7 @@ async def detection_stats(
     try:
         from app.detection.queries import validate_camera_id, query_detection_stats
         validate_camera_id(camera_id)
-        stats = query_detection_stats(camera_id)
+        stats = await asyncio.to_thread(query_detection_stats, camera_id)
         return DetectionStats(
             total_detections=stats.get("total", 0),
             unique_chickens=stats.get("unique", 0),
@@ -131,7 +132,7 @@ async def detection_history(
     if farm_id and str(camera.farm_id) != farm_id and user.role.name != "super_admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     try:
-        detection_series, headcount_series = query_detection_history(camera_id, start, end, window)
+        detection_series, headcount_series = await asyncio.to_thread(query_detection_history, camera_id, start, end, window)
         return DetectionHistory(
             camera_id=camera_id,
             window=window,
@@ -165,7 +166,7 @@ async def detection_summary(
     if farm_id and str(camera.farm_id) != farm_id and user.role.name != "super_admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     try:
-        summary = query_detection_summary(camera_id, start, end)
+        summary = await asyncio.to_thread(query_detection_summary, camera_id, start, end)
         return DetectionSummary(**summary)
     except ImportError:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="InfluxDB not available")
@@ -187,7 +188,7 @@ async def global_detection_history(
 ):
     try:
         from app.detection.queries import query_global_history
-        detection_series, headcount_series = query_global_history(start, end, window, farm_id=farm_id)
+        detection_series, headcount_series = await asyncio.to_thread(query_global_history, start, end, window, farm_id=farm_id)
         return DetectionHistory(
             camera_id="all",
             window=window,
@@ -216,7 +217,7 @@ async def live_per_camera_counts(
     """
     try:
         from app.detection.queries import query_per_camera_live_counts
-        counts = query_per_camera_live_counts(farm_id=farm_id, window_minutes=2)
+        counts = await asyncio.to_thread(query_per_camera_live_counts, farm_id=farm_id, window_minutes=2)
 
         # Join with camera names from PostgreSQL
         camera_ids = [r["camera_id"] for r in counts]
