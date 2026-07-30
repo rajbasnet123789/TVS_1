@@ -48,6 +48,7 @@ export default function Dashboard() {
   const { cameras } = useCameras()
   const navigate = useNavigate()
   const [stats, setStats] = useState({ chickens: 0, cameras: 0, onlineCameras: 0, healthyPct: 0, alerts: 0 })
+  const [channelStats, setChannelStats] = useState<{ id: string; name: string; count: number; online: boolean }[]>([])
   const [detectedChickens, setDetectedChickens] = useState<any[]>([])
   const [coops, setCoops] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -116,18 +117,36 @@ export default function Dashboard() {
 
         let totalDetections = 0
         let uniqueChickensCount = 0
+        const chanStats: { id: string; name: string; count: number; online: boolean }[] = []
 
         if (camerasToQuery.length > 0) {
           await Promise.all(
-            camerasToQuery.slice(0, 5).map(async (c: any) => {
+            camerasToQuery.slice(0, 8).map(async (c: any) => {
               try {
                 const { data } = await api.get(`/cameras/${c.id}/detection/stats`)
+                const count = data?.unique_chickens || 0
                 totalDetections += data?.total_detections || 0
-                uniqueChickensCount += data?.unique_chickens || 0
-              } catch (err) { /* ignore */ }
+                uniqueChickensCount += count
+                chanStats.push({
+                  id: c.id,
+                  name: c.name,
+                  count,
+                  online: c.status === 'online' || c.enabled !== false,
+                })
+              } catch (err) {
+                chanStats.push({
+                  id: c.id,
+                  name: c.name,
+                  count: 0,
+                  online: false,
+                })
+              }
             })
           )
         }
+
+        chanStats.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+        setChannelStats(chanStats)
 
         const alerts = cameras.filter((c: any) => c && c.status === 'offline').length
         const healthyPct = Math.min(100, Math.round(
@@ -489,6 +508,68 @@ export default function Dashboard() {
             />
           </Grid>
         </Grid>
+      )}
+
+      {/* Individual Per-Channel Live Detection Breakdown */}
+      {channelStats.length > 0 && (
+        <Box sx={{ mb: 4 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+            <Box>
+              <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, letterSpacing: '0.08em', fontSize: '0.7rem', display: 'block' }}>
+                LIVE PER-CHANNEL BREAKDOWN
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '1rem', fontFamily: '"Outfit", sans-serif' }}>
+                Individual Camera Detection Counts
+              </Typography>
+            </Box>
+            <Chip 
+              label={`${stats.chickens} Total Live Chickens`} 
+              size="small" 
+              sx={{ bgcolor: '#10b981', color: '#ffffff', fontWeight: 700, fontFamily: '"Outfit", sans-serif', px: 0.5 }} 
+            />
+          </Box>
+
+          <Grid container spacing={2}>
+            {channelStats.map((ch) => {
+              const displayName = ch.name.replace(/^192\.168\.\d+\.\d+\s*-\s*/, '')
+              return (
+                <Grid item xs={12} sm={6} md={2.4} key={ch.id}>
+                  <Paper 
+                    elevation={0}
+                    sx={{
+                      p: 2,
+                      borderRadius: '12px',
+                      border: ch.count > 0 ? '1.5px solid #10b981' : '1px solid #e2e8f0',
+                      bgcolor: ch.count > 0 ? '#f0fdf4' : '#ffffff',
+                      transition: 'all 0.2s ease-in-out',
+                      '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Typography variant="caption" sx={{ color: '#475569', fontWeight: 800, fontSize: '0.8rem', fontFamily: '"JetBrains Mono", monospace' }}>
+                        {displayName}
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: ch.online ? '#10b981' : '#cbd5e1' }} />
+                        <Typography variant="caption" sx={{ color: ch.online ? '#10b981' : '#94a3b8', fontSize: '0.65rem', fontWeight: 700 }}>
+                          {ch.online ? 'LIVE' : 'OFFLINE'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                      <Typography variant="h4" sx={{ fontWeight: 800, color: ch.count > 0 ? '#047857' : '#0f172a', fontFamily: '"Outfit", sans-serif' }}>
+                        {ch.count}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>
+                        chickens
+                      </Typography>
+                    </Box>
+                  </Paper>
+                </Grid>
+              )
+            })}
+          </Grid>
+        </Box>
       )}
 
       {/* 3. Middle Section: Map, Cameras, Timeline */}

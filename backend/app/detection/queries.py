@@ -413,3 +413,40 @@ def query_raw_detections(
                 "h": record.get_value_by_key("h"),
             })
     return results
+
+
+def query_per_camera_live_counts(farm_id: str | None = None, window_minutes: int = 2) -> list[dict]:
+    """Return the count of unique track_ids seen per camera in the last `window_minutes` minutes.
+
+    track_id is stored as a TAG. To count unique values we group by (camera_id, track_id),
+    collapse each group to a single row (count), then re-group by camera_id only and count
+    the remaining rows — giving unique track_ids per camera.
+
+    Returns a list of {camera_id, count} sorted by camera_id.
+    """
+    client = _get_influx()
+    farm_filter = f'and r["farm_id"] == "{farm_id}"' if farm_id else ""
+    query = f'''
+        from(bucket: "{settings.influx_bucket}")
+            |> range(start: -{window_minutes}m)
+            |> filter(fn: (r) =>
+                r["_field"] == "confidence"
+                and r["track_id"] != "-1"
+                and r["track_id"] != "None"
+                {farm_filter}
+            )
+            |> group(columns: ["camera_id", "track_id"])
+            |> count()
+            |> group(columns: ["camera_id"])
+            |> count()
+    '''
+    results: list[dict] = []
+    for table in client.query_api().query(query):
+        for record in table.records:
+            cam_id = record.values.get("camera_id")
+            count = record.get_value() or 0
+            if cam_id:
+                results.append({"camera_id": cam_id, "count": count})
+
+    results.sort(key=lambda r: r["camera_id"])
+    return results

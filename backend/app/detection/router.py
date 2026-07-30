@@ -202,3 +202,44 @@ async def global_detection_history(
     except Exception:
         logger.exception("Global history query failed")
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to retrieve global detection history")
+
+
+@global_router.get("/live-counts")
+async def live_per_camera_counts(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_permission("dashboard:read")),
+    farm_id: str | None = Depends(get_farm_id),
+):
+    """Return the count of unique chickens (by track_id) seen per camera in the last 2 minutes.
+
+    Response: [{camera_id, camera_name, count}] sorted by camera name.
+    """
+    try:
+        from app.detection.queries import query_per_camera_live_counts
+        counts = query_per_camera_live_counts(farm_id=farm_id, window_minutes=2)
+
+        # Join with camera names from PostgreSQL
+        camera_ids = [r["camera_id"] for r in counts]
+        if camera_ids:
+            result = await db.execute(select(Camera).where(Camera.id.in_(camera_ids)))
+            cam_map = {str(c.id): c.name for c in result.scalars().all()}
+        else:
+            cam_map = {}
+
+        enriched = [
+            {
+                "camera_id": r["camera_id"],
+                "camera_name": cam_map.get(r["camera_id"], r["camera_id"]),
+                "count": r["count"],
+            }
+            for r in counts
+        ]
+        # Sort by camera name so channels appear in order
+        enriched.sort(key=lambda x: x["camera_name"])
+        return enriched
+    except ImportError:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="InfluxDB not available")
+    except Exception:
+        logger.exception("Live counts query failed")
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to retrieve live counts")
+
