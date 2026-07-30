@@ -47,25 +47,33 @@ async def fix_camera_channels_internal(
     farm = farm_res.scalar_one_or_none()
     farm_id = farm.id if farm else None
 
-    # Wipe all existing camera entries to guarantee zero stale worker connections
+    # Wipe ALL existing camera entries to clear duplicates and wrong URLs
     await db.execute(delete(Camera))
     await db.commit()
 
-    # Recreate exactly 5 clean active camera entries pointing directly to go2rtc streams (ch0..ch4)
+    # Recreate exactly 5 clean camera entries.
+    # go2rtc is pre-configured with ch0..ch4 streams pointing to the Dahua NVR via
+    # dvrip:// + ffmpeg:rtsp://...realmonitor (correct Dahua format).
+    # cv-engine consumes from go2rtc RTSP re-streams — no direct NVR access needed.
     cameras = []
     for idx in range(5):
-        ch = idx + 1
+        ch_label = idx + 1  # Display: Ch 1 .. Ch 5
+        # go2rtc stream name matches go2rtc.yaml keys: ch0, ch1, ch2, ch3, ch4
         stream_url = f"rtsp://localhost:8554/ch{idx}"
         cam = Camera(
             farm_id=farm_id,
-            name=f"192.168.31.169 - Ch {ch}",
+            name=f"192.168.31.169 - Ch {ch_label}",
             rtsp_url=stream_url,
-            location=f"NVR Channel {ch}",
+            location=f"NVR Channel {ch_label}",
             status="online",
             enabled=True,
         )
         db.add(cam)
-        cameras.append({"name": f"192.168.31.169 - Ch {ch}", "dvrip_channel": idx, "rtsp_url": stream_url})
+        cameras.append({
+            "name": f"192.168.31.169 - Ch {ch_label}",
+            "go2rtc_stream": f"ch{idx}",
+            "rtsp_url": stream_url,
+        })
 
     await db.commit()
     return {"status": "ok", "created_count": len(cameras), "cameras": cameras}
