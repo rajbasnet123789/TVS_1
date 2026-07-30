@@ -160,7 +160,6 @@ async def register(
 
 
 @router.post("/login", response_model=TokenResponse)
-@limiter.limit("10/minute")
 async def login(request: Request, response: Response, data: LoginRequest, db: AsyncSession = Depends(get_db)):
     clean_email = data.email.strip().lower()
     result = await db.execute(select(User).where(func.lower(User.email) == clean_email))
