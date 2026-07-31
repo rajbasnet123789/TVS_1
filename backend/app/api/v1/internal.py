@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cameras.models import Camera
 from app.database import get_db
-from app.alerts.models import AlertRule, Alert
+from app.alerts.models import Alert
 from app.alerts.service import create_alert
 from app.alerts.schemas import AlertCreate
 from app.config import settings
@@ -174,31 +174,6 @@ async def list_active_cameras(
     }
 
 
-@router.get("/alert-rules")
-async def list_active_alert_rules(
-    db: AsyncSession = Depends(get_db),
-    _: None = Depends(_require_internal_token),
-):
-    """Return enabled alert rules for cv-engine to evaluate."""
-    result = await db.execute(select(AlertRule).where(AlertRule.enabled == True))
-    rules = result.scalars().all()
-    return {
-        "rules": [
-            {
-                "id": str(rule.id),
-                "name": rule.name,
-                "metric": rule.metric,
-                "threshold": rule.threshold,
-                "window_minutes": getattr(rule, "duration_minutes", 30),
-                "severity": rule.severity,
-                "farm_id": str(rule.farm_id) if rule.farm_id else None,
-                "camera_id": None,
-            }
-            for rule in rules
-        ]
-    }
-
-
 @router.post("/alerts")
 async def create_alert_internal(
     data: AlertCreate,
@@ -208,3 +183,46 @@ async def create_alert_internal(
     """Create an alert (called by cv-engine)."""
     alert = await create_alert(db, data, data.farm_id if hasattr(data, 'farm_id') else None)
     return {"alert_id": str(alert.id), "status": "created"}
+
+
+@router.post("/counts")
+async def ingest_live_counts(
+    body: dict,
+    _: None = Depends(_require_internal_token),
+):
+    """Receive live per-camera counts from cv-engine and broadcast them over WebSocket.
+
+    Expected body: {"counts": [{"camera_id": "...", "farm_id": "...", "count": 12}, ...]}
+    """
+    from app.websocket.manager import manager
+
+    counts = body.get("counts", [])
+    if not counts:
+        return {"ok": True, "relayed": 0}
+
+    by_farm: dict[str, list[dict]] = {}
+    for item in counts:
+        cam_id = item.get("camera_id")
+        farm_id = item.get("farm_id")
+        count = int(item.get("count", 0))
+        if not cam_id:
+            continue
+        entry = {"camera_id": cam_id, "count": count, "ts": item.get("ts", 0.0)}
+        if farm_id:
+            by_farm.setdefault(farm_id, []).append(entry)
+
+    # Broadcast per-farm to scoped clients (farm_<id>/detections), plus the global
+    # channel so clients without a farm still get updates.
+    relayed = 0
+    for farm_id, entries in by_farm.items():
+        await manager.broadcast(
+            f"farm_{farm_id}/detections",
+            {"type": "counts", "counts": entries, "farm_id": farm_id},
+        )
+        relayed += len(entries)
+    await manager.broadcast(
+        "detections",
+        {"type": "counts", "counts": counts, "farm_id": None},
+    )
+    return {"ok": True, "relayed": relayed}
+

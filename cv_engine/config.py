@@ -16,10 +16,15 @@ class Settings:
     GO2RTC_API_URL: str = os.getenv("GO2RTC_API_URL", "http://localhost:1984")
     GO2RTC_RTSP_URL: str = os.getenv("GO2RTC_RTSP_URL", "rtsp://localhost:8554")
     STREAM_CACHE_DIR: str = os.getenv("STREAM_CACHE_DIR", "stream_cache")
-    WS_POLL_INTERVAL_MS: int = int(os.getenv("WS_POLL_INTERVAL_MS", "50"))
     DETECTION_CONFIDENCE: float = float(os.getenv("DETECTION_CONFIDENCE", "0.55"))
-    COUNT_CONFIDENCE: float = float(os.getenv("COUNT_CONFIDENCE", "0.65"))
     MODEL_PATH: str = os.getenv("MODEL_PATH", "AI_MODEL/best.pt")
+    # Inference speed tuning: run YOLO at this resolution (smaller = faster) and
+    # at most this often (skip frames between runs). Live video is unaffected —
+    # it streams via a separate MJPEG path.
+    INFERENCE_IMGSZ: int = int(os.getenv("INFERENCE_IMGSZ", "640"))
+    INFERENCE_MIN_INTERVAL_MS: int = int(os.getenv("INFERENCE_MIN_INTERVAL_MS", "400"))
+    # How often cv-engine pushes live per-camera counts to the backend (seconds).
+    COUNTS_PUSH_INTERVAL_SECONDS: float = float(os.getenv("COUNTS_PUSH_INTERVAL_SECONDS", "1"))
 
 
 settings = Settings()

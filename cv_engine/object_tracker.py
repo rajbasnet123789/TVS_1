@@ -22,12 +22,14 @@ class ObjectTracker:
         frame,
         conf_threshold: float = 0.55,
         classes: list[int] | None = None,
+        imgsz: int = 640,
     ):
         results = self._model.track(
             source=frame,
             persist=True,
             conf=conf_threshold,
             classes=classes,
+            imgsz=imgsz,
             tracker="bytetrack.yaml",
             device=self._device,
             half=self._half,

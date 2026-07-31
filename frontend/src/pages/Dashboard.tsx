@@ -263,6 +263,16 @@ export default function Dashboard() {
         },
         ...prev.slice(0, 19)
       ])
+    },
+    counts: (msg: any) => {
+      const entries = Array.isArray(msg?.counts) ? msg.counts : []
+      if (entries.length === 0) return
+      setChannelStats(prev =>
+        prev.map(ch => {
+          const match = entries.find((e: any) => e.camera_id === ch.id)
+          return match ? { ...ch, count: Number(match.count) || 0 } : ch
+        })
+      )
     }
   })
 

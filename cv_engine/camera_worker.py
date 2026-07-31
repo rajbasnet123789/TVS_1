@@ -45,6 +45,8 @@ def _worker_main(
     frame_idx = 0
     backoff = 1.0
     max_backoff = 10.0
+    min_interval = settings.INFERENCE_MIN_INTERVAL_MS / 1000.0
+    last_inference_at = 0.0
 
     while not stop_event.is_set():
         raw = frame_store.latest_bytes(camera_id)
@@ -60,10 +62,17 @@ def _worker_main(
 
         backoff = 1.0
 
+        now = time.monotonic()
+        if now - last_inference_at < min_interval:
+            time.sleep(0.05)
+            continue
+
         detections = tracker.track(
             frame,
             conf_threshold=settings.DETECTION_CONFIDENCE,
+            imgsz=settings.INFERENCE_IMGSZ,
         )
+        last_inference_at = now
 
         event_batch = []
 
@@ -93,6 +102,19 @@ def _worker_main(
                 detection_queue.put_nowait(event)
             except Exception:
                 pass
+
+        # Publish a lightweight live-count event (skips InfluxDB; server pushes it
+        # straight to the backend WebSocket so the UI updates in near-real-time).
+        try:
+            detection_queue.put_nowait({
+                "type": "count",
+                "camera_id": camera_id,
+                "farm_id": farm_id,
+                "count": len(event_batch),
+                "ts": time.time(),
+            })
+        except Exception:
+            pass
 
         frame_idx += 1
         time.sleep(0.01)

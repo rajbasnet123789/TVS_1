@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 _influx_writer: InfluxWriter | None = None
 _camera_manager: CameraManager | None = None
 _detection_queue: Any = None
+_latest_counts: dict[str, dict] = {}
 
 
 async def _report_camera_statuses() -> None:
@@ -69,6 +70,42 @@ async def _sync_cameras_loop() -> None:
         await asyncio.sleep(max(backoff, 10))
 
 
+async def _push_counts_loop() -> None:
+    """Push the latest per-camera counts to the backend every N seconds.
+
+    The backend caches these in memory and broadcasts them over the WebSocket,
+    so the UI gets live counts without polling InfluxDB.
+    """
+    if _camera_manager is None:
+        return
+    headers: dict[str, str] = {}
+    if settings.CV_ENGINE_API_KEY:
+        headers["X-Internal-Token"] = settings.CV_ENGINE_API_KEY
+
+    interval = max(settings.COUNTS_PUSH_INTERVAL_SECONDS, 0.5)
+    while True:
+        await asyncio.sleep(interval)
+        if not _latest_counts:
+            continue
+        payload = [
+            {
+                "camera_id": cam_id,
+                "farm_id": info.get("farm_id", ""),
+                "count": info.get("count", 0),
+            }
+            for cam_id, info in _latest_counts.items()
+        ]
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                await client.post(
+                    f"{settings.BUSINESS_BACKEND_URL}/v1/internal/counts",
+                    headers={**headers, "Content-Type": "application/json"},
+                    json={"counts": payload},
+                )
+        except Exception as e:
+            logger.warning("Failed to push counts to backend: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _influx_writer, _camera_manager, _detection_queue
@@ -81,11 +118,13 @@ async def lifespan(app: FastAPI):
 
     sync_task = asyncio.create_task(_sync_cameras_loop())
     drain_task = asyncio.create_task(_drain_detection_queue())
+    counts_task = asyncio.create_task(_push_counts_loop())
 
     yield
 
     sync_task.cancel()
     drain_task.cancel()
+    counts_task.cancel()
     _camera_manager.stop_all()
     _influx_writer.stop()
 
@@ -95,7 +134,14 @@ async def _drain_detection_queue() -> None:
         try:
             while not _detection_queue.empty():
                 event = _detection_queue.get_nowait()
-                _influx_writer.enqueue(event)
+                if event.get("type") == "count":
+                    _latest_counts[event["camera_id"]] = {
+                        "farm_id": event.get("farm_id", ""),
+                        "count": event.get("count", 0),
+                        "ts": event.get("ts", 0.0),
+                    }
+                else:
+                    _influx_writer.enqueue(event)
         except Exception:
             pass
         await asyncio.sleep(0.05)
