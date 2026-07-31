@@ -87,7 +87,7 @@ const sections = [
   },
   {
     title: '13. Contact Us',
-    body: 'If you have questions or concerns about this Privacy Policy or how your data is handled, please contact us at ajay.sharma@tvssecurity.com.',
+    body: 'If you have questions or concerns about this Privacy Policy or how your data is handled, please contact us at abhishek@tvssecurity.com.',
   },
 ]
 
