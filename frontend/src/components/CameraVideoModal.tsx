@@ -1,6 +1,6 @@
 import { Dialog, DialogTitle, IconButton, Box } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
-import { Go2rtcPlayer } from './Go2rtcPlayer'
+import { CameraFeed } from './CameraFeed'
 
 interface CameraVideoModalProps {
   cameraId: string
@@ -19,7 +19,7 @@ export function CameraVideoModal({ cameraId, cameraName, open, onClose }: Camera
         </IconButton>
       </DialogTitle>
       <Box sx={{ aspectRatio: '16/9', width: '100%', bgcolor: '#000' }}>
-        <Go2rtcPlayer cameraId={cameraId} />
+        <CameraFeed id={cameraId} name={cameraName} status="online" />
       </Box>
     </Dialog>
   )

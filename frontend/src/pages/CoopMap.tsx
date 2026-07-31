@@ -5,7 +5,7 @@ import {
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import { CoopCard, type CoopData } from '../components/CoopCard'
-import { Go2rtcPlayer } from '../components/Go2rtcPlayer'
+import { CameraFeed } from '../components/CameraFeed'
 import api from '../api/axios'
 import { useAuth } from '../auth/AuthContext'
 import type { Camera } from '../types'
@@ -184,7 +184,7 @@ export default function CoopMap() {
             </DialogTitle>
             <DialogContent sx={{ p: 2 }}>
               <Box sx={{ aspectRatio: '16/9', width: '100%', bgcolor: '#000', borderRadius: 1, overflow: 'hidden' }}>
-                <Go2rtcPlayer cameraId={feedCamera.id} />
+                <CameraFeed id={feedCamera.id} name={feedCamera.name} status="online" />
               </Box>
             </DialogContent>
             <DialogActions sx={{ px: 3, pb: 2 }}>
