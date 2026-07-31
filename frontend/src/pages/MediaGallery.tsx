@@ -8,10 +8,12 @@ import DownloadIcon from '@mui/icons-material/Download'
 import BrokenImageIcon from '@mui/icons-material/BrokenImage'
 import api from '../api/axios'
 import { useAuth } from '../auth/AuthContext'
+import { buildMortalityMedia } from '../demo/mortality'
 
 interface MediaItem {
   key: string
   url: string
+  mortality?: boolean
 }
 
 export default function MediaGallery() {
@@ -28,8 +30,17 @@ export default function MediaGallery() {
       const { data } = await api.get('/media/list', {
         params: { prefix: 'snapshots' },
       })
-      const sorted = (data.objects || []).sort(
-        (a: MediaItem, b: MediaItem) => b.key.localeCompare(a.key)
+      const apiItems: MediaItem[] = (data.objects || []).map((o: any) => ({
+        key: o.key,
+        url: o.url,
+      }))
+      const demoItems: MediaItem[] = buildMortalityMedia().map((m) => ({
+        key: m.key,
+        url: m.url,
+        mortality: true,
+      }))
+      const sorted = [...apiItems, ...demoItems].sort((a, b) =>
+        b.key.localeCompare(a.key)
       )
       setItems(sorted)
     } catch (e: any) {
@@ -54,7 +65,7 @@ export default function MediaGallery() {
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.5 }}>Media Gallery</Typography>
           <Typography variant="body2" color="text.secondary">
-            {items.length} snapshot{items.length !== 1 ? 's' : ''} captured from bird detections
+            {items.length} snapshot{items.length !== 1 ? 's' : ''} — bird detections and mortality events
           </Typography>
         </Box>
         {!loading && (
@@ -90,9 +101,26 @@ export default function MediaGallery() {
                   transition: 'transform 0.15s, box-shadow 0.15s',
                   '&:hover': { transform: 'scale(1.03)', boxShadow: 4 },
                   position: 'relative',
+                  border: item.mortality ? '1px solid #fecaca' : 'none',
                 }}
                 onClick={() => setSelected(item)}
               >
+                {item.mortality && (
+                  <Chip
+                    label="DEAD CHICKEN DETECTED"
+                    size="small"
+                    color="error"
+                    sx={{
+                      position: 'absolute',
+                      top: 8,
+                      left: 8,
+                      zIndex: 2,
+                      fontWeight: 700,
+                      fontSize: '0.6rem',
+                      borderRadius: '4px',
+                    }}
+                  />
+                )}
                 <CardMedia
                   component="img"
                   height={140}
@@ -139,6 +167,14 @@ export default function MediaGallery() {
             <Typography variant="caption" sx={{ position: 'absolute', bottom: 8, left: 8, color: '#fff', bgcolor: 'rgba(0,0,0,0.6)', px: 1, py: 0.5, borderRadius: 1 }}>
               {selected.key}
             </Typography>
+            {selected.mortality && (
+              <Chip
+                label="DEAD CHICKEN DETECTED"
+                size="small"
+                color="error"
+                sx={{ position: 'absolute', bottom: 8, right: 8, fontWeight: 700, fontSize: '0.65rem', borderRadius: '4px' }}
+              />
+            )}
           </Box>
         )}
       </Dialog>

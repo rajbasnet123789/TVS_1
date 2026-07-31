@@ -40,6 +40,7 @@ persistent_summary:
     - PUT /auth/users/{id} now updates full_name (was missing from UserUpdate schema + router).
     - WebSocket /ws token extraction fixed: websocket.query_params.get("token") instead of broken FastAPI param binding.
     - Deleted stale backend/test.jpg stub file.
+  - Hardcoded mortality demo (session 2026-08-01): frontend/src/demo/mortality.ts merges hardcoded "mortality" alerts + 2 photos (frontend/public/mortality/Mortality.jpg, Mortality2.jpg) into Alerts.tsx (red MORTALITY rows, local acknowledge for demo- ids) and MediaGallery.tsx (red "DEAD CHICKEN DETECTED" chip cards). Not backed by a real health/mortality model.
 
   ### In Progress
   - (none)

@@ -14,6 +14,7 @@ import RefreshIcon from '@mui/icons-material/Refresh'
 import { useCameras } from '../hooks/useCameras'
 import { useAuth } from '../auth/AuthContext'
 import api from '../api/axios'
+import { buildMortalityAlerts, isDemoAlert } from '../demo/mortality'
 
 interface AlertItem {
   id: string
@@ -59,13 +60,18 @@ export default function Alerts() {
     setAlertsError(null)
     try {
       const { data } = await api.get('/alerts')
-      setAlertList(data || [])
+      const apiAlerts: AlertItem[] = data || []
+      const demoAlerts = buildMortalityAlerts(cameras.map((c: any) => c.id))
+      const combined = [...apiAlerts, ...demoAlerts].sort((a, b) =>
+        b.created_at.localeCompare(a.created_at)
+      )
+      setAlertList(combined)
     } catch (e: any) {
       setAlertsError(e?.response?.data?.detail || 'Failed to fetch alerts')
     } finally {
       setAlertsLoading(false)
     }
-  }, [])
+  }, [cameras])
 
   const fetchGallery = useCallback(async () => {
     setGalleryLoading(true)
@@ -92,15 +98,18 @@ export default function Alerts() {
   }, [fetchAlerts, fetchGallery, tabValue, currentFarm])
 
   const handleAcknowledge = async (alertId: string) => {
-    try {
-      await api.put(`/alerts/${alertId}/acknowledge`, {})
-      setAlertList(prev =>
-        prev.map(a => a.id === alertId ? { ...a, acknowledged_at: new Date().toISOString() } : a)
-      )
-      setSuccessMsg('Alert successfully acknowledged')
-    } catch (e: any) {
-      setAlertsError(e?.response?.data?.detail || 'Failed to acknowledge alert')
+    if (!isDemoAlert(alertId)) {
+      try {
+        await api.put(`/alerts/${alertId}/acknowledge`, {})
+      } catch (e: any) {
+        setAlertsError(e?.response?.data?.detail || 'Failed to acknowledge alert')
+        return
+      }
     }
+    setAlertList(prev =>
+      prev.map(a => a.id === alertId ? { ...a, acknowledged_at: new Date().toISOString() } : a)
+    )
+    setSuccessMsg('Alert successfully acknowledged')
   }
 
   const handleEnroll = async (e: React.FormEvent) => {
@@ -302,11 +311,13 @@ export default function Alerts() {
                 <TableBody>
                   {alertList.map((alert) => {
                     const isIntruder = alert.type === 'intruder';
+                    const isMortality = alert.type === 'mortality';
+                    const critical = isIntruder || isMortality;
                     return (
                       <TableRow 
                         key={alert.id} 
                         hover
-                        sx={isIntruder && !alert.acknowledged_at ? {
+                        sx={critical && !alert.acknowledged_at ? {
                           bgcolor: 'rgba(254, 226, 226, 0.35)',
                           borderLeft: '4px solid #ef4444'
                         } : {}}
@@ -317,7 +328,7 @@ export default function Alerts() {
                            <Chip
                              label={alert.type.toUpperCase()}
                              size="small"
-                             color={isIntruder ? 'error' : alert.type === 'health_critical' ? 'warning' : 'default'}
+                             color={critical ? 'error' : alert.type === 'health_critical' ? 'warning' : 'default'}
                              sx={{ fontWeight: 700, fontSize: '0.7rem', borderRadius: '4px' }}
                            />
                         </TableCell>
@@ -330,7 +341,7 @@ export default function Alerts() {
                             sx={{ fontWeight: 600, fontSize: '0.7rem', borderRadius: '4px' }}
                           />
                         </TableCell>
-                        <TableCell sx={{ color: isIntruder ? '#b91c1c' : '#334155', fontWeight: isIntruder ? 700 : 400 }}>
+                        <TableCell sx={{ color: critical ? '#b91c1c' : '#334155', fontWeight: critical ? 700 : 400 }}>
                           {alert.message}
                         </TableCell>
                         <TableCell align="right">
@@ -349,9 +360,9 @@ export default function Alerts() {
                               startIcon={<CheckIcon />}
                               onClick={() => handleAcknowledge(alert.id)}
                               sx={{ 
-                                bgcolor: isIntruder ? '#ef4444' : '#0f172a',
+                                bgcolor: critical ? '#ef4444' : '#0f172a',
                                 color: '#fff',
-                                '&:hover': { bgcolor: isIntruder ? '#dc2626' : '#1e293b' },
+                                '&:hover': { bgcolor: critical ? '#dc2626' : '#1e293b' },
                                 textTransform: 'none',
                                 fontWeight: 600,
                                 borderRadius: '6px'
