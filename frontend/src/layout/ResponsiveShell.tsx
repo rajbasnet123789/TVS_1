@@ -1,7 +1,7 @@
 import { useState, lazy, Suspense } from 'react'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { Box, Toolbar, Typography, CircularProgress } from '@mui/material'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { ProtectedRoute } from '../auth/ProtectedRoute'
@@ -19,6 +19,7 @@ const Reports = lazy(() => import('../pages/Reports'))
 const ProfitLoss = lazy(() => import('../pages/ProfitLoss'))
 const AdminFarms = lazy(() => import('../pages/admin/Farms'))
 const MediaGallery = lazy(() => import('../pages/MediaGallery'))
+const PrivacyPolicy = lazy(() => import('../pages/PrivacyPolicy'))
 
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import { PWAPrompt } from '../components/PWAPrompt'
@@ -85,6 +86,17 @@ export function ResponsiveShell() {
   const { user, loading } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
   const isOnline = useOnlineStatus()
+  const location = useLocation()
+
+  if (location.pathname === '/privacy-policy') {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<PageLoading />}>
+          <PrivacyPolicy />
+        </Suspense>
+      </ErrorBoundary>
+    )
+  }
 
   if (loading) return <AuthLoading />
   if (!user) {

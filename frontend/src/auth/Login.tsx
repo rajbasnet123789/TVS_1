@@ -7,6 +7,7 @@ import { MailOutline, LockOutlined, Visibility, VisibilityOff } from '@mui/icons
 import { useAuth } from '../auth/AuthContext'
 import type { AxiosError } from 'axios'
 import api from '../api/axios'
+import { Link } from 'react-router-dom'
 
 interface ErrorResponse {
   detail?: string
@@ -520,6 +521,20 @@ export default function Login() {
 
             </Box>
           </Box>
+
+          <Typography
+            variant="caption"
+            sx={{ display: 'block', textAlign: 'center', mt: 4, color: '#94a3b8' }}
+          >
+            <Link
+              to="/privacy-policy"
+              style={{ color: '#0d3c3d', fontWeight: 600, textDecoration: 'none' }}
+              onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
+              onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
+            >
+              Privacy Policy
+            </Link>
+          </Typography>
         </Box>
       </Box>
 
