@@ -95,5 +95,23 @@ class GoogleLoginRequest(BaseModel):
     credential: str
 
 
+class DeletionRequestCreate(BaseModel):
+    reason: str | None = None
+
+
+class DeletionRequestOut(BaseModel):
+    id: UUID
+    user_id: UUID | None
+    email: str
+    full_name: str | None
+    reason: str | None
+    status: str
+    requested_at: datetime
+    processed_at: datetime | None
+    processed_by: str | None
+
+    model_config = {"from_attributes": True}
+
+
 class AuthConfigResponse(BaseModel):
     google_client_id: str | None = None

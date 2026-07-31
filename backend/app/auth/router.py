@@ -7,17 +7,19 @@ from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone, timedelta
 
 from app.auth.deps import get_current_user, get_farm_id, require_permission
-from app.auth.models import Role, User
+from app.auth.models import DeletionRequest, Role, User
 from app.auth.schemas import (
+    AuthConfigResponse,
     ChangePasswordRequest,
+    DeletionRequestCreate,
+    DeletionRequestOut,
+    GoogleLoginRequest,
     LoginRequest,
     TokenRefreshRequest,
     TokenResponse,
     UserCreate,
     UserUpdate,
     UserOut,
-    AuthConfigResponse,
-    GoogleLoginRequest,
 )
 from app.auth.service import (
     create_access_token,
@@ -461,3 +463,118 @@ async def login_google(data: GoogleLoginRequest, response: Response, db: AsyncSe
         refresh_token=refresh_token,
         must_change_password=user.must_change_password
     )
+
+
+@router.post("/deletion-request")
+@limiter.limit("3/minute")
+async def create_deletion_request(
+    request: Request,
+    data: DeletionRequestCreate,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    role_result = await db.execute(select(Role).where(Role.id == user.role_id))
+    role = role_result.scalar_one_or_none()
+    if role and role.name == "super_admin":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The super admin account cannot be deleted",
+        )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="An account deletion request is already pending for this user",
+        )
+    new_request = DeletionRequest(
+        user_id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        reason=data.reason,
+        status="pending",
+    )
+    db.add(new_request)
+    user.is_active = False
+    if credentials and credentials.credentials:
+        await blacklist_token(credentials.credentials)
+    await db.commit()
+    return {
+        "message": "Account deletion request submitted. Your account has been deactivated and an administrator will process your request."
+    }
+
+
+@router.get("/deletion-requests", response_model=list[DeletionRequestOut])
+async def list_deletion_requests(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_permission("users:write")),
+    farm_id: str | None = Depends(get_farm_id),
+):
+    query = select(DeletionRequest).order_by(DeletionRequest.requested_at.desc())
+    if farm_id:
+        query = query.join(User, User.id == DeletionRequest.user_id).where(User.farm_id == farm_id)
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
+@router.post("/deletion-requests/{request_id}/approve", status_code=status.HTTP_204_NO_CONTENT)
+async def approve_deletion_request(
+    request_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_permission("users:write")),
+    farm_id: str | None = Depends(get_farm_id),
+):
+    result = await db.execute(select(DeletionRequest).where(DeletionRequest.id == request_id))
+    deletion_request = result.scalar_one_or_none()
+    if not deletion_request:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Deletion request not found")
+    if deletion_request.status != "pending":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Deletion request already processed")
+
+    target_user = None
+    if deletion_request.user_id:
+        user_result = await db.execute(select(User).where(User.id == deletion_request.user_id))
+        target_user = user_result.scalar_one_or_none()
+    if farm_id:
+        if not target_user or str(target_user.farm_id) != farm_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    if target_user:
+        role_result = await db.execute(select(Role).where(Role.id == target_user.role_id))
+        target_role = role_result.scalar_one_or_none()
+        if target_role and target_role.name == "super_admin":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete the only super admin")
+        await db.delete(target_user)
+
+    deletion_request.status = "completed"
+    deletion_request.processed_at = datetime.now(timezone.utc)
+    deletion_request.processed_by = user.email
+    await db.commit()
+
+
+@router.post("/deletion-requests/{request_id}/reject", status_code=status.HTTP_204_NO_CONTENT)
+async def reject_deletion_request(
+    request_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_permission("users:write")),
+    farm_id: str | None = Depends(get_farm_id),
+):
+    result = await db.execute(select(DeletionRequest).where(DeletionRequest.id == request_id))
+    deletion_request = result.scalar_one_or_none()
+    if not deletion_request:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Deletion request not found")
+    if deletion_request.status != "pending":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Deletion request already processed")
+
+    target_user = None
+    if deletion_request.user_id:
+        user_result = await db.execute(select(User).where(User.id == deletion_request.user_id))
+        target_user = user_result.scalar_one_or_none()
+    if farm_id:
+        if not target_user or str(target_user.farm_id) != farm_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    if target_user and not target_user.is_active:
+        target_user.is_active = True
+
+    deletion_request.status = "rejected"
+    deletion_request.processed_at = datetime.now(timezone.utc)
+    deletion_request.processed_by = user.email
+    await db.commit()

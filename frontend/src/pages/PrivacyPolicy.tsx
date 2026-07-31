@@ -75,7 +75,7 @@ const sections = [
       'Object to or restrict certain processing activities.',
       'Export a copy of your farm data.',
     ],
-    body2: 'To exercise any of these rights, contact your farm administrator or email us at the address below. We will respond within a reasonable time.',
+    body2: 'To exercise any of these rights, contact your farm administrator or email us at the address below. You can also request account and data deletion directly from within the app via Settings > Delete Account & Data. We will respond within a reasonable time.',
   },
   {
     title: '11. Children\u2019s Privacy',
