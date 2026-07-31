@@ -61,7 +61,10 @@ export default function Alerts() {
     try {
       const { data } = await api.get('/alerts')
       const apiAlerts: AlertItem[] = data || []
-      const demoAlerts = buildMortalityAlerts(cameras.map((c: any) => c.id))
+      const targetCam =
+        cameras.find((c: any) => String(c.name).includes('192.168.31.169 - Ch 5')) ||
+        cameras[0]
+      const demoAlerts = buildMortalityAlerts([targetCam?.id, targetCam?.id])
       const combined = [...apiAlerts, ...demoAlerts].sort((a, b) =>
         b.created_at.localeCompare(a.created_at)
       )
@@ -313,6 +316,7 @@ export default function Alerts() {
                     const isIntruder = alert.type === 'intruder';
                     const isMortality = alert.type === 'mortality';
                     const critical = isIntruder || isMortality;
+                    const cameraName = cameras.find((c: any) => c.id === alert.camera_id)?.name;
                     return (
                       <TableRow 
                         key={alert.id} 
@@ -323,7 +327,7 @@ export default function Alerts() {
                         } : {}}
                       >
                         <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(alert.created_at)}</TableCell>
-                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, fontWeight: 600 }}>{alert.camera_id || 'Global'}</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, fontWeight: 600 }}>{cameraName || alert.camera_id || 'Global'}</TableCell>
                         <TableCell>
                            <Chip
                              label={alert.type.toUpperCase()}

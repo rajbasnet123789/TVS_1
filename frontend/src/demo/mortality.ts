@@ -17,9 +17,7 @@ export interface DemoMedia {
   key: string
   url: string
   label: string
-}
-
-const MORTALITY_PHOTOS = [
+}const MORTALITY_PHOTOS = [
   '/mortality/Mortality.jpg',
   '/mortality/Mortality2.jpg',
 ]
@@ -62,14 +60,14 @@ export function buildMortalityAlerts(cameraIds: (string | null)[] = []): DemoAle
 export function buildMortalityMedia(): DemoMedia[] {
   return [
     {
-      key: 'snapshots/CAM-01/2026-08-01_07-42-00_mortality.jpg',
+      key: 'snapshots/192.168.31.169 - Ch 5/2026-08-01_07-42-00_mortality.jpg',
       url: MORTALITY_PHOTOS[0],
-      label: 'CAM-01',
+      label: '192.168.31.169 - Ch 5',
     },
     {
-      key: 'snapshots/CAM-02/2026-08-01_06-10-00_mortality.jpg',
+      key: 'snapshots/192.168.31.169 - Ch 5/2026-08-01_06-10-00_mortality.jpg',
       url: MORTALITY_PHOTOS[1],
-      label: 'CAM-02',
+      label: '192.168.31.169 - Ch 5',
     },
   ]
 }
