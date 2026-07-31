@@ -1,147 +1,103 @@
-# Poultry Monitoring System
+# TVS Poultry Monitor
 
-AI-powered chicken monitoring with real-time detection via **Frigate NVR**, cross-camera re-identification (MiewID + FAISS), health classification, and web dashboard.
+AI-powered, multi-farm poultry monitoring system. Live chicken counts from IP/NVR cameras, real-time alerts, and a company-level dashboard for managing every farm from one place.
 
-## Architecture
+- **Detection:** Custom `cv_engine/` service — YOLOv8 + OpenCV + FFmpeg, count-only (no per-chicken identity tracking)
+- **Video:** [go2rtc](https://github.com/AlexxIT/go2rtc) relays NVR channels and serves HLS at `:1984` (host network); the dashboard is count-first
+- **Backend:** Python FastAPI + SQLAlchemy (single worker)
+- **Frontend:** React + TypeScript + Vite + Material UI, served by nginx (which also reverse-proxies the API)
+- **Data:** PostgreSQL (relational), InfluxDB (time-series detections), Redis (sessions/blacklist), local filesystem for media
+- **Multi-farm:** Farm-scoped data isolation + super admin who can manage all farms and impersonate any user
 
-- **Backend:** Python FastAPI + SQLAlchemy (GPU inference pipeline)
-- **Frontend:** React + TypeScript + Vite + Material UI
-- **Databases:** PostgreSQL (relational), InfluxDB (time-series), Redis (cache/pub-sub), and Local File Storage (for media)
-- **NVR + Detection:** Frigate (motion-triggered bird detection, go2rtc HLS streaming)
-- **AI:** Frigate built-in detector (OpenVINO/TensorRT) + HealthClassifier (best.pt, 32 health classes) + MiewID (2152-dim ReID) + FAISS gallery for cross-camera identity matching
-
-## Quick Start
-
-### Docker (recommended) — all models included
+## Quick Start (Docker)
 
 ```bash
+cp .env.example .env      # fill in secrets (see .env.example comments)
 docker compose up -d --build
 ```
 
-This builds the backend image with:
-- Frigate 0.17 for motion detection, bird detection, recording, and HLS streaming
-- HealthClassifier model (best.pt) for fine-grained health analysis
-- MiewID ReID model (200MB, pre-cached) for cross-camera chicken identity
-- PyTorch with CUDA for GPU-accelerated health inference
+Then open **http://localhost:3001** and log in with `admin@poultry.farm` (password = `DEFAULT_ADMIN_PASSWORD` in `.env`).
 
-Then open http://localhost:3000 and login with `admin@poultry.farm` and the password set in `DEFAULT_ADMIN_PASSWORD`.
+> Local development without Docker: see [docs/localhost-development-guide.md](docs/localhost-development-guide.md).
 
-### Local development (manual model setup)
+## Architecture in One Paragraph
 
-See [docs/localhost-development-guide.md](docs/localhost-development-guide.md).
+IP cameras / an NVR publish RTSP streams. **go2rtc** (host network) ingests them and re-exposes clean HLS endpoints. The **cv-engine** (host network, GPU) reads the RTSP streams with FFmpeg, runs YOLOv8 to count chickens per frame, and writes detection counts to InfluxDB (with a `farm_id` tag). The **backend** reads those counts back and serves them as REST + WebSocket to the **frontend**. The frontend renders per-camera count cards on a shared 3-second poll. See [docs/architecture.md](docs/architecture.md) for the full picture.
 
-## Large Model Files (not in git)
+## Services & Ports
 
-| File | Size | Location | Used By |
-|------|------|----------|---------|
-| `best.pt` | ~25 MB | `AI_MODEL__/AI_MODEL/best.pt` | Backend health classification |
-| `yolov8x.pt` | 130 MB | `yolov8x.pt` | AI_MODEL standalone tests |
-| `yolov8m.pt` | 50 MB | `yolov8m.pt` | Fallback detection model |
-| `yolo11n.pt` | 5 MB | `AI_MODEL__/model 2/yolo11n.pt` | Fecal disease model |
-
-### Download Health Model
-
-```bash
-# Place your trained best.pt in:
-AI_MODEL__/AI_MODEL/best.pt
-```
-
-### ReID Models (auto-downloaded)
-
-ReID models download automatically on first run:
-
-- **MiewID** (`conservationxlabs/miewid-msv3`): `~/.cache/huggingface/hub/models--conservationxlabs--miewid-msv3/` (~200MB)
-- **OSNet** (fallback): `~/.cache/torch/hub/checkpoints/osnet_x0_25_msmt17.pt` (~10MB)
-
-No manual setup needed for ReID models.
+| Service    | Host port | Purpose |
+|------------|-----------|---------|
+| frontend   | 3001      | Web UI (nginx serves the SPA and proxies `/api/` + `/ws`) |
+| backend    | 18000     | FastAPI REST + WebSocket (container port 8000) |
+| cv-engine  | 8700      | YOLO detection pipeline (host network, GPU) |
+| go2rtc     | 1984 / 8554 | HLS API / RTSP relay (host network) |
+| postgres   | 5433      | Relational database |
+| influxdb   | 8086      | Time-series detection data |
+| redis      | 6379      | Cache, token blacklist |
+| mosquitto  | 1883      | MQTT broker (reserved for future use) |
 
 ## Project Structure
 
 ```
-D:\TVS_1\
-├── AI_MODEL__/            # AI model code + training data
-│   ├── AI_MODEL/
-│   │   ├── main.py        # Standalone detection entry
-│   │   ├── mcmt_test.py   # MCMT system test
-│   │   ├── hen_counter.py # Hen counter orchestrator
-│   │   ├── reid.py        # Zone-based counting
-│   │   ├── botsort_custom.yaml
-│   │   └── dataset/       # Training data (not in git)
-│   └── model 2/           # Fecal disease model
 ├── backend/               # FastAPI REST API + WebSocket
-│   ├── Dockerfile         # CUDA + models baked in
-│   └── app/
-│       ├── frigate/       # Frigate integration
-│       │   ├── subscriber.py  # MQTT event → health + MCMT pipeline
-│       │   ├── client.py      # Frigate REST API client
-│       │   ├── config_manager.py  # Camera config generator
-│       │   └── schemas.py
-│       ├── detection/
-│       │   ├── detector.py      # HealthClassifier (best.pt)
-│       │   ├── mcmt_singleton.py # Shared GlobalTracker
-│       │   └── queries.py       # InfluxDB queries
-│       ├── cameras/        # Camera CRUD + ONVIF scan
-│       ├── auth/           # Auth + impersonation
-│       ├── alerts/         # Alert rules + evaluation
-│       ├── health/         # Health score queries
-│       ├── websocket/      # Real-time push
-│       └── media/          # MinIO upload/download
-├── frontend/              # React dashboard
-│   └── Dockerfile         # Nginx + Vite build
-├── frigate/               # Frigate config directory
+│   ├── app/
+│   │   ├── api/v1/        # Route wiring incl. /v1/internal/*
+│   │   ├── auth/          # Auth, JWT, impersonation, deletion requests
+│   │   ├── farms/         # Multi-farm CRUD + farm scoping
+│   │   ├── cameras/       # Camera CRUD, ONVIF scan
+│   │   ├── chickens/      # Chicken records
+│   │   ├── coops/         # Coop/group management
+│   │   ├── detection/     # Counts/history/summary from InfluxDB
+│   │   ├── alerts/        # Alert CRUD + rule evaluator (60s interval)
+│   │   ├── analytics/     # Analytics endpoints
+│   │   ├── environment/   # Environmental telemetry (IoT-ready)
+│   │   ├── health/        # Health score queries (populated once health ML lands)
+│   │   ├── media/         # Local-filesystem media CRUD (farm-scoped)
+│   │   ├── nvr/           # NVR connect/discover/register (Dahua CGI + ONVIF)
+│   │   ├── xmeye/         # XMEye LAN camera discovery
+│   │   ├── websocket/     # /ws — farm-scoped realtime channel
+│   │   └── alerts/rules.py# Alert rule evaluator (sole owner)
+│   └── alembic/           # DB migrations (001_mcmt → 005)
+├── cv_engine/             # YOLOv8 + OpenCV + FFmpeg pipeline (subprocess per camera)
+│   ├── server.py          # FastAPI: camera sync loop, health/status, xmeye scan
+│   ├── camera_manager.py  # Per-camera subprocess manager
+│   ├── camera_worker.py   # FFmpeg + YOLOv8 + frame store per camera
+│   ├── stream_manager.py  # RTSP→JPEG frame extraction
+│   ├── influx_writer.py   # Detection queue → InfluxDB
+│   └── box_processor.py   # YOLO output → count boxes
+├── frontend/              # React dashboard (Vite + MUI), nginx.conf proxies
+├── go2rtc/                # go2rtc config — static NVR channel streams
 ├── mosquitto/             # MQTT broker config
-├── docs/                  # Architecture + deployment docs
-├── docker-compose.yml     # Full stack orchestration
+├── models/                # ML model metadata + weights
+├── docs/                  # Architecture, deployment, dev guides
+├── docker-compose.yml     # Full stack
+├── docker-compose.prod.yml# Production overrides
 └── .env.example           # Environment template
 ```
 
-## GPU Requirements
+## Key Features
 
-- **CUDA 12.4+** with NVIDIA GPU (tested on RTX 3050 Laptop 4GB)
-- **VRAM**: ~1-2 GB during inference (HealthClassifier + MiewID)
-- Falls back to CPU if CUDA unavailable (slower)
-- Frigate can also use OpenVINO (Intel GPU/CPU) for detection
-- Docker uses `nvidia-container-toolkit` for GPU passthrough
-
-### Docker GPU Setup
-
-Requires [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html):
-
-```bash
-# Ubuntu/Debian
-curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
-curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
-  sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
-  sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
-sudo nvidia-ctk runtime configure --runtime=docker
-sudo systemctl restart docker
-```
-
-### Useful Docker Commands
-
-```bash
-# Build with GPU
-docker compose up -d --build
-
-# View backend logs
-docker compose logs -f backend
-
-# View Frigate logs
-docker compose logs -f frigate
-
-# Rebuild only backend
-docker compose build backend && docker compose up -d backend
-
-# Stop all
-docker compose down
-
-# Stop and remove volumes (fresh start)
-docker compose down -v
-```
+- **Multi-farm:** each farm has isolated cameras, chickens, users, alerts, settings. Super admin (`admin@poultry.farm`) manages all farms from one dashboard via a farm switcher.
+- **Impersonation:** super admin can view the app as any user for 15 minutes (yellow banner with Stop button).
+- **Live counts:** per-camera chicken counts from YOLO, refreshed on a shared 3s poll.
+- **Video relay:** go2rtc ingests all NVR channels and exposes HLS at `http://<host>:1984` — handy for ad-hoc viewing; embedding it in the dashboard is a roadmap item.
+- **Alert rules:** configurable rules (inactivity, headcount drop, missing camera, etc.) evaluated every 60s with deduplication.
+- **Privacy & compliance:** public privacy policy at `/privacy-policy`, in-app account/data deletion requests (Settings → Delete Account & Data), single-sign-on support (Google OAuth).
+- **Automated backups:** daily `pg_dump` + InfluxDB backup with 14-day retention.
 
 ## Documentation
 
-- [Architecture Document](docs/architecture.md)
-- [Deployment Guide](docs/deployment_guide.md)
+- [Architecture](docs/architecture.md)
+- [Deployment](docs/deployment_guide.md)
+- [Server Runbook & Updates](deployment.md)
 - [Localhost Development Guide](docs/localhost-development-guide.md)
+- [Contributing](CONTRIBUTING.md)
+- [Changelog](CHANGELOG.md)
+- [TODO list](TODOS.md)
+
+## GPU Requirements
+
+- NVIDIA GPU with CUDA (tested on RTX 3050, 4 GB VRAM) and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html).
+- `cv-engine` runs with `runtime: nvidia` and CUDA + FP16; the backend runs on CPU.
+- Falls back to CPU if no GPU is available (slower).
