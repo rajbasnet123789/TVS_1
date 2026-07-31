@@ -38,7 +38,11 @@ COCO_BIRD_CLASS_ID = 14  # "bird" in COCO
 
 # Model paths
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-YOLO_MODEL_PATH = os.path.join(SCRIPT_DIR, "weight_model", "yolo_chicken", "best.pt")
+# The single detection model used by this project (mounted at ./AI_MODEL).
+CANONICAL_MODEL_PATH = os.path.normpath(
+    os.path.join(SCRIPT_DIR, "..", "..", "AI_MODEL", "best.pt")
+)
+YOLO_MODEL_PATH = CANONICAL_MODEL_PATH
 WEIGHT_MODEL_PATH = os.path.join(SCRIPT_DIR, "weight_model", "weight_model.ubj")
 NORM_STATS_PATH = os.path.join(SCRIPT_DIR, "weight_model", "norm_stats.json")
 REID_MODEL_PATH = os.path.join(SCRIPT_DIR, "model_config", "transformer_reid.pt")
@@ -147,26 +151,14 @@ def load_models():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Device: {device}")
 
-    # Load YOLO model — prioritize custom fine-tuned model first
-    yolo_paths = [
-        YOLO_MODEL_PATH,                                          # Custom fine-tuned (priority)
-        os.path.join(SCRIPT_DIR, "yolov11n-p2.pt"),               # YOLOv11 with P2 head
-        "yolov11n.pt",                                             # Generic YOLOv11n
-    ]
-
-    model = None
-    for path in yolo_paths:
-        if os.path.exists(path):
-            try:
-                model = YOLO(path)
-                print(f"YOLO model loaded: {path}")
-                break
-            except Exception as e:
-                print(f"Failed to load {path}: {e}")
-
-    if model is None:
-        print("Loading default YOLOv11n...")
-        model = YOLO("yolov11n.pt")
+    # Load YOLO model — the only detection model used is AI_MODEL/best.pt
+    if not os.path.exists(YOLO_MODEL_PATH):
+        raise FileNotFoundError(
+            f"Detection model not found: {YOLO_MODEL_PATH} "
+            "(expected AI_MODEL/best.pt). No other model is used for detection."
+        )
+    model = YOLO(YOLO_MODEL_PATH)
+    print(f"YOLO model loaded: {YOLO_MODEL_PATH}")
 
     model.to(device)
 

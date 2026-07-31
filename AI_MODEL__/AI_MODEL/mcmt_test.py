@@ -15,31 +15,28 @@ sys.path.insert(0, os.path.dirname(__file__))
 # MCMT Configuration
 # ==========================================
 VIDEO_PATH = r"D:\WhatsApp Video 2026-06-13 at 9.27.30 AM.mp4"
-MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "yolov8x.pt")
-TRACKER_CONFIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "botsort_custom.yaml")
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# The single detection model used by this project (mounted at ./AI_MODEL).
+MODEL_PATH = os.path.normpath(os.path.join(SCRIPT_DIR, "..", "..", "AI_MODEL", "best.pt"))
+TRACKER_CONFIG = os.path.join(SCRIPT_DIR, "botsort_custom.yaml")
 CONF_THRESHOLD = 0.4
 CLASSES = [14]  # COCO bird class
 MATCH_THRESHOLD = 0.5
-SPATIAL_CONSTRAINT = 50.0
-TEMPORAL_CONSTRAINT = 5.0
 
 # Camera simulation: 3 views from same video
 CAMERAS = {
     "cam_north": {
         "name": "North Wing Camera",
-        "position": {"x": 0, "y": 0, "z": 0},
         "crop": None,  # full frame
         "color_shift": 0,
     },
     "cam_south": {
         "name": "South Wing Camera",
-        "position": {"x": 20, "y": 0, "z": 0},
         "crop": (0.3, 0.0, 1.0, 1.0),  # right 70% of frame
         "color_shift": 10,
     },
     "cam_east": {
         "name": "East Wing Camera",
-        "position": {"x": 10, "y": 15, "z": 0},
         "crop": (0.0, 0.0, 0.7, 1.0),  # left 70% of frame
         "color_shift": -10,
     },
@@ -190,8 +187,9 @@ class EmbeddingExtractor:
 # FAISS Embedding Gallery
 # ==========================================
 class EmbeddingGallery:
-    def __init__(self, dim: int = 2152):
+    def __init__(self, dim: int = 2152, threshold: float = MATCH_THRESHOLD):
         self.dim = dim
+        self.threshold = threshold
         self._embeddings: dict[int, np.ndarray] = {}
         self._metadata: dict[int, dict] = {}
         self._next_id = 1
@@ -272,6 +270,20 @@ class EmbeddingGallery:
             old_conf = self._metadata[gid]["confidence"]
             self._metadata[gid]["confidence"] = (old_conf * (c - 1) + confidence) / c
 
+    def match_or_create(self, embedding: np.ndarray, camera_id: str, confidence: float = 0.0) -> int:
+        """Match against this gallery (single stream), else create a new identity."""
+        matches = self.search(embedding, k=5, threshold=self.threshold)
+        best_gid = None
+        best_score = 0.0
+        for gid, score in matches:
+            if score > best_score:
+                best_score = score
+                best_gid = gid
+        if best_gid is not None:
+            self.update(best_gid, embedding, camera_id, confidence)
+            return best_gid
+        return self.add(embedding, camera_id, confidence)
+
     def get_metadata(self, gid: int) -> Optional[dict]:
         return self._metadata.get(gid)
 
@@ -284,22 +296,25 @@ class EmbeddingGallery:
 
 
 # ==========================================
-# Global Tracker (cross-camera)
+# Per-Stream Tracker (single-stream ReID only)
 # ==========================================
-class GlobalTracker:
+class SingleStreamTracker:
+    """Tracks identities within each camera stream only.
+
+    All chickens look identical, so matching embeddings across different
+    cameras is meaningless. ReID is therefore applied per camera (single
+    stream) — an identity is only ever matched against detections from the
+    SAME camera, never re-identified across cameras.
+    """
+
     def __init__(self):
         self.extractor = EmbeddingExtractor()
-        self.gallery = EmbeddingGallery(dim=MIEWID_DIM)
-        self._camera_locations: dict[str, dict] = {}
+        self._galleries: dict[str, EmbeddingGallery] = {}
         self._match_threshold = MATCH_THRESHOLD
-        self._spatial_dist = SPATIAL_CONSTRAINT
-        self._temporal_sec = TEMPORAL_CONSTRAINT
 
     def load(self):
         self.extractor.load()
-        for cam_id, cam_cfg in CAMERAS.items():
-            self._camera_locations[cam_id] = cam_cfg["position"]
-        print(f"[Tracker] Loaded {len(self._camera_locations)} camera positions")
+        print(f"[Tracker] Per-stream ReID (no cross-camera matching)")
 
     def process_frame(self, detections: list[dict], track_ids: list[Optional[int]],
                       frame: np.ndarray, camera_id: str) -> list[dict]:
@@ -309,6 +324,11 @@ class GlobalTracker:
         bboxes = [d["bbox"] for d in detections]
         embeddings = self.extractor.extract(frame, bboxes)
 
+        gallery = self._galleries.get(camera_id)
+        if gallery is None:
+            gallery = EmbeddingGallery(dim=MIEWID_DIM)
+            self._galleries[camera_id] = gallery
+
         results = []
         for det, tid, emb in zip(detections, track_ids, embeddings):
             entry = {**det}
@@ -317,44 +337,18 @@ class GlobalTracker:
                 results.append(entry)
                 continue
 
-            gid = self._match_or_create(emb, camera_id, det.get("confidence", 0.0))
+            # ReID against THIS camera's gallery only.
+            gid = gallery.match_or_create(emb, camera_id, det.get("confidence", 0.0))
             entry["global_id"] = gid
             results.append(entry)
 
         return results
 
-    def _match_or_create(self, embedding: np.ndarray, camera_id: str, confidence: float) -> int:
-        matches = self.gallery.search(embedding, k=5, threshold=self._match_threshold)
+    def gallery(self, camera_id: str) -> EmbeddingGallery:
+        return self._galleries.setdefault(camera_id, EmbeddingGallery(dim=MIEWID_DIM))
 
-        best_gid = None
-        best_score = 0.0
-
-        for gid, score in matches:
-            meta = self.gallery.get_metadata(gid)
-            if meta is None:
-                continue
-
-            last_cam = meta["camera_id"]
-            last_seen = meta["last_seen"]
-            time_diff = time.time() - last_seen
-
-            if last_cam != camera_id:
-                loc_a = self._camera_locations.get(last_cam, {"x": 0, "y": 0, "z": 0})
-                loc_b = self._camera_locations.get(camera_id, {"x": 0, "y": 0, "z": 0})
-                spatial = np.sqrt(sum((loc_a[k] - loc_b[k]) ** 2 for k in ["x", "y", "z"]))
-
-                if spatial > self._spatial_dist and time_diff < self._temporal_sec:
-                    continue
-
-            if score > best_score:
-                best_score = score
-                best_gid = gid
-
-        if best_gid is not None:
-            self.gallery.update(best_gid, embedding, camera_id, confidence)
-            return best_gid
-
-        return self.gallery.add(embedding, camera_id, confidence)
+    def gallery_sizes(self) -> dict[str, int]:
+        return {cid: g.size() for cid, g in self._galleries.items()}
 
 
 # ==========================================
@@ -446,24 +440,14 @@ def draw_global_panel(frame, tracker, cam_ids):
     y0 = 35
     lh = 22
 
-    cv2.putText(frame, "MCMT Global Tracker", (x0, y0),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 2)
-    y0 += lh
-
-    active = tracker.gallery.get_active(max_age=5.0)
-    cv2.putText(frame, f"Gallery: {tracker.gallery.size()} identities", (x0, y0),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1)
-    y0 += lh
-
-    cv2.putText(frame, f"Active (5s): {len(active)} hens", (x0, y0),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 0), 1)
+    cv2.putText(frame, "Per-Stream ReID (no cross-camera)", (x0, y0),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
     y0 += lh
 
     for cam_id in cam_ids:
-        loc = tracker._camera_locations.get(cam_id, {"x": 0, "y": 0, "z": 0})
-        text = f"{cam_id}: ({loc['x']},{loc['y']},{loc['z']})"
-        cv2.putText(frame, text, (x0, y0),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.35, (180, 180, 180), 1)
+        size = tracker.gallery(cam_id).size()
+        cv2.putText(frame, f"{cam_id}: {size} identities", (x0, y0),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, (180, 180, 180), 1)
         y0 += lh - 4
 
 
@@ -472,8 +456,8 @@ def draw_global_panel(frame, tracker, cam_ids):
 # ==========================================
 def main():
     print("=" * 60)
-    print("  MCMT Multi-Camera Hen Tracking Test")
-    print("  YOLOv8x(1280px) + BoT-SORT + MiewID ReID + FAISS Gallery")
+    print("  Multi-Camera Hen Tracking Test")
+    print("  best.pt + BoT-SORT + per-stream ReID (no cross-camera matching)")
     print("=" * 60)
     print()
 
@@ -486,7 +470,7 @@ def main():
     model.to(device)
     print(f"[Model] YOLOv8m on {device}")
 
-    tracker = GlobalTracker()
+    tracker = SingleStreamTracker()
     tracker.load()
     print()
 
@@ -494,7 +478,7 @@ def main():
     for cam_id, cam_cfg in CAMERAS.items():
         cap = cv2.VideoCapture(VIDEO_PATH)
         cameras[cam_id] = SimulatedCamera(cam_id, cam_cfg, cap)
-        print(f"[Camera] {cam_cfg['name']} ({cam_id}) at position {cam_cfg['position']}")
+        print(f"[Camera] {cam_cfg['name']} ({cam_id})")
 
     print()
     print("=" * 60)
@@ -507,7 +491,6 @@ def main():
 
     frame_num = 0
     total_detections = 0
-    cross_camera_matches = 0
     per_cam_stats = {cid: {"frames": 0, "dets": 0, "ids": set()} for cid in CAMERAS}
     all_global_ids = set()
     start_time = time.time()
@@ -589,7 +572,7 @@ def main():
     print(f"  Frames processed:     {frame_num}")
     print(f"  Elapsed time:         {elapsed:.2f}s")
     print(f"  Processing FPS:       {frame_num / elapsed:.1f}")
-    print(f"  Gallery size:         {tracker.gallery.size()} unique identities")
+    print("  ReID mode:            per-stream only (no cross-camera matching)")
     print()
     print("  Per-Camera Statistics:")
     for cam_id, stats in per_cam_stats.items():
@@ -599,17 +582,19 @@ def main():
         print(f"      Frames: {stats['frames']}, Detections: {stats['dets']}")
         print(f"      Local IDs seen: {ids_list}")
     print()
-    print(f"  All Global IDs:       {sorted(all_global_ids)}")
+    print(f"  All Local IDs:        {sorted(all_global_ids)}")
     print(f"  Total unique hens:    {len(all_global_ids)}")
     print()
 
-    print("  Gallery Contents:")
-    for gid in sorted(tracker.gallery.get_active(max_age=999)):
-        meta = tracker.gallery.get_metadata(gid)
-        if meta:
-            print(f"    G{gid:3d}: camera={meta['camera_id']:12s} "
-                  f"conf={meta['confidence']:.3f} "
-                  f"detections={meta['detection_count']}")
+    print("  Gallery Contents (per camera):")
+    for cam_id in CAMERAS:
+        gallery = tracker.gallery(cam_id)
+        print(f"    Camera {cam_id} ({gallery.size()} identities):")
+        for gid in sorted(gallery.get_active(max_age=999)):
+            meta = gallery.get_metadata(gid)
+            if meta:
+                print(f"      G{gid:3d}: conf={meta['confidence']:.3f} "
+                      f"detections={meta['detection_count']}")
     print()
     print("=" * 60)
 

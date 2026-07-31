@@ -1,15 +1,12 @@
 """
-YOLOv11 + P2 + Transformer ReID Pipeline (Backward Compatible)
+Hen Detection Pipeline (Channel Image Mode)
 
-Main pipeline for single-camera hen detection, tracking, and counting.
-Integrates:
-- YOLOv11 with P2 detection head for small objects
-- Transformer-based ReID for cross-camera identification
-- XGBoost weight estimation
-- Zone-based counting with trajectory tracking
+Per-channel hen detection, counting, and weight estimation using a single
+YOLO detection model:
+- Detection: AI_MODEL/best.pt (the only model used for detection)
+- No ReID / no cross-camera identification — all chickens look identical, so
+  re-identifying them across channels is meaningless. Detection-only.
 
-Fallback: If YOLOv11 or Transformer ReID unavailable, falls back to
-existing YOLOv8 + MiewID models.
 """
 
 import cv2
@@ -18,11 +15,7 @@ import sys
 import time
 import torch
 import numpy as np
-import torch.nn as nn
-import torch.nn.functional as F
 from ultralytics import YOLO
-from safetensors.torch import load_file
-from huggingface_hub import hf_hub_download
 
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "weight_model"))
@@ -32,15 +25,17 @@ from weight_predictor import ChickenWeightPredictor
 # ==========================================
 # Configuration
 # ==========================================
-MIEWID_REPO = "conservationxlabs/miewid-msv3"
-MIEWID_DIM = 2152
-REID_MATCH_THRESHOLD = 0.5
 CONF_THRESHOLD = 0.35
 MIN_BOX_AREA = 400
 MAX_ASPECT_RATIO = 3.0
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 WEIGHT_MODEL_DIR = os.path.join(SCRIPT_DIR, "weight_model")
+
+# The single detection model used by this project (mounted at ./AI_MODEL).
+CANONICAL_MODEL_PATH = os.path.normpath(
+    os.path.join(SCRIPT_DIR, "..", "..", "AI_MODEL", "best.pt")
+)
 
 # Class names to search for in priority order
 CHICKEN_CLASS_NAMES = ["chicken", "hen"]
@@ -54,204 +49,6 @@ DETECTION_ROI = {
     "CH_04": [[0.5391, 0.1773], [0.9169, 0.3014], [0.874, 0.9986], [0.1341, 0.9944], [0.1581, 0.6171]],
     "CH_06": [[0.2675, 0.1317], [0.835, 0.1362], [0.995, 0.9978], [0.07, 0.9978], [0.00375, 0.7165]],
 }
-
-
-# ==========================================
-# GeM Pooling
-# ==========================================
-class GeM(nn.Module):
-    def __init__(self, p=3, eps=1e-6):
-        super().__init__()
-        self.p = nn.Parameter(torch.ones(1) * p)
-        self.eps = eps
-    def forward(self, x):
-        return F.avg_pool2d(x.clamp(min=self.eps).pow(self.p), (x.size(-2), x.size(-1))).pow(1. / self.p)
-
-
-# ==========================================
-# ReID Extractor (auto-selects best available)
-# ==========================================
-class ReIDExtractor:
-    """Auto-selecting ReID: Transformer > MiewID > None."""
-
-    def __init__(self):
-        self._backbone = None
-        self._bn = None
-        self._transform = None
-        self._device = "cpu"
-        self._loaded = False
-        self._backend = None
-        self._reid_dim = 512
-
-    def load(self):
-        self._device = "cuda:0" if torch.cuda.is_available() else "cpu"
-
-        # Try Transformer ReID first
-        if self._try_load_transformer():
-            return
-
-        # Fallback to MiewID
-        if self._try_load_miewid():
-            return
-
-        print("[ReID] No ReID model available")
-
-    def _try_load_transformer(self):
-        try:
-            sys.path.insert(0, SCRIPT_DIR)
-            from model_config.transformer_reid import ViTReID, TransformerReIDExtractor
-
-            reid_path = os.path.join(SCRIPT_DIR, "model_config", "transformer_reid.pt")
-            model = ViTReID(
-                img_size=224, patch_size=16, embed_dim=384,
-                depth=12, num_heads=6, num_classes=512,
-            )
-            if os.path.exists(reid_path):
-                state_dict = torch.load(reid_path, map_location=self._device)
-                model.load_state_dict(state_dict, strict=False)
-
-            self._backbone = model.to(self._device).eval()
-            self._bn = None
-            self._reid_dim = 512
-            self._backend = "transformer"
-
-            import torchvision.transforms as transforms
-            self._transform = transforms.Compose([
-                transforms.Resize((224, 224)),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ])
-            self._loaded = True
-            print(f"[ReID] Transformer loaded on {self._device} (dim=512)")
-            return True
-        except Exception as e:
-            print(f"[ReID] Transformer load failed: {e}")
-            return False
-
-    def _try_load_miewid(self):
-        try:
-            import timm
-            backbone = timm.create_model("efficientnetv2_rw_m", pretrained=False, num_classes=0)
-            backbone.global_pool = GeM()
-            bn = nn.BatchNorm1d(MIEWID_DIM)
-            weights_path = hf_hub_download(MIEWID_REPO, "model.safetensors")
-            weights = load_file(weights_path)
-            backbone_state = {k.replace("backbone.", ""): v for k, v in weights.items() if k.startswith("backbone.")}
-            backbone.load_state_dict(backbone_state, strict=False)
-            bn_state = {k.replace("bn.", ""): v for k, v in weights.items() if k.startswith("bn.")}
-            bn.load_state_dict(bn_state)
-            self._backbone = backbone.to(self._device).eval()
-            self._bn = bn.to(self._device).eval()
-            self._reid_dim = MIEWID_DIM
-            self._backend = "miewid"
-            from timm.data import resolve_data_config, create_transform
-            data_config = resolve_data_config(self._backbone.pretrained_cfg)
-            self._transform = create_transform(**data_config, is_training=False)
-            self._loaded = True
-            print(f"[ReID] MiewID loaded on {self._device} (dim={MIEWID_DIM})")
-            return True
-        except Exception as e:
-            print(f"[ReID] MiewID load failed: {e}")
-            return False
-
-    def extract(self, frame, bboxes):
-        if not self._loaded:
-            return [None] * len(bboxes)
-        from PIL import Image
-        crops, valid_idx = [], []
-        for i, bbox in enumerate(bboxes):
-            x1 = max(0, int(bbox["x"]))
-            y1 = max(0, int(bbox["y"]))
-            x2 = min(frame.shape[1], int(bbox["x"] + bbox["w"]))
-            y2 = min(frame.shape[0], int(bbox["y"] + bbox["h"]))
-            if x2 - x1 < 10 or y2 - y1 < 10:
-                continue
-            crop = frame[y1:y2, x1:x2]
-            if crop.size == 0:
-                continue
-            pil = Image.fromarray(crop[:, :, ::-1] if crop.shape[2] == 3 else crop)
-            t = self._transform(pil).unsqueeze(0)
-            crops.append(t)
-            valid_idx.append(i)
-        if not crops:
-            return [None] * len(bboxes)
-        try:
-            batch = torch.cat(crops, dim=0).to(self._device)
-            with torch.no_grad():
-                if self._backend == "transformer":
-                    features = self._backbone(batch)
-                else:
-                    feat = self._backbone(batch)
-                    feat = feat.view(feat.size(0), -1)
-                    features = self._bn(feat)
-            features = features.cpu().numpy()
-            result = [None] * len(bboxes)
-            for j, idx in enumerate(valid_idx):
-                if j < len(features):
-                    emb = features[j].flatten()
-                    n = np.linalg.norm(emb)
-                    result[idx] = emb / n if n > 0 else emb
-            return result
-        except Exception as e:
-            print(f"[ReID] Extract failed: {e}")
-            return [None] * len(bboxes)
-
-
-# ==========================================
-# ReID Gallery
-# ==========================================
-class ReIDGallery:
-    def __init__(self, dim=512, threshold=REID_MATCH_THRESHOLD):
-        self.dim = dim
-        self.threshold = threshold
-        self._embs = {}
-        self._next_id = 1
-        try:
-            import faiss
-            self._index = faiss.IndexFlatIP(dim)
-            self._id_map = []
-            self._use_faiss = True
-        except ImportError:
-            self._index = None
-            self._id_map = []
-            self._use_faiss = False
-
-    def match_or_create(self, emb, confidence=0.0):
-        if emb is None:
-            return self._add(np.zeros(self.dim, dtype=np.float32), confidence)
-        if self._use_faiss and self._index.ntotal > 0:
-            k = min(5, self._index.ntotal)
-            dists, idxs = self._index.search(emb.reshape(1, -1).astype(np.float32), k)
-            for d, idx in zip(dists[0], idxs[0]):
-                if 0 <= idx < len(self._id_map) and d >= self.threshold:
-                    gid = self._id_map[idx]
-                    self._update_embedding(gid, emb, confidence)
-                    return gid
-        return self._add(emb, confidence)
-
-    def _add(self, emb, confidence):
-        gid = self._next_id
-        self._next_id += 1
-        self._embs[gid] = emb.copy()
-        if self._use_faiss:
-            self._index.add(emb.reshape(1, -1).astype(np.float32))
-        self._id_map.append(gid)
-        return gid
-
-    def _update_embedding(self, gid, emb, confidence):
-        old = self._embs.get(gid)
-        if old is None:
-            return
-        alpha = 0.3
-        updated = alpha * emb + (1 - alpha) * old
-        n = np.linalg.norm(updated)
-        if n > 0:
-            updated = updated / n
-        self._embs[gid] = updated
-
-    @property
-    def size(self):
-        return len(self._embs)
 
 
 # ==========================================
@@ -290,24 +87,17 @@ def detect_chicken_class_id(yolo_model):
 # Setup & Model Loading
 # ==========================================
 def load_all_models():
-    """Load all models once, return (model, device, weight_predictor, reid, chicken_class_id)."""
-    yolo_paths = [
-        os.path.join(WEIGHT_MODEL_DIR, "yolo_chicken", "best.pt"),
-        os.path.join(SCRIPT_DIR, "yolov11n-p2.pt"),
-        "yolov11n.pt",
-    ]
-    model = None
-    for path in yolo_paths:
-        if os.path.exists(path):
-            try:
-                model = YOLO(path)
-                print(f"YOLO model loaded: {path}")
-                break
-            except Exception:
-                pass
-    if model is None:
-        model = YOLO("yolov11n.pt")
-        print("Loaded default YOLOv11n")
+    """Load the single YOLO detection model (AI_MODEL/best.pt).
+
+    Returns (model, device, weight_predictor, chicken_class_id).
+    """
+    if not os.path.exists(CANONICAL_MODEL_PATH):
+        raise FileNotFoundError(
+            f"Detection model not found: {CANONICAL_MODEL_PATH} "
+            "(expected AI_MODEL/best.pt). No other model is used for detection."
+        )
+    print(f"YOLO model loaded: {CANONICAL_MODEL_PATH}")
+    model = YOLO(CANONICAL_MODEL_PATH)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model.to(device)
@@ -320,10 +110,7 @@ def load_all_models():
         stats_path=os.path.join(WEIGHT_MODEL_DIR, "norm_stats.json"),
     )
 
-    reid = ReIDExtractor()
-    reid.load()
-
-    return model, device, weight_predictor, reid, chicken_class_id
+    return model, device, weight_predictor, chicken_class_id
 
 
 def point_in_roi(cx, cy, roi_polygon, frame_w, frame_h):
@@ -334,7 +121,7 @@ def point_in_roi(cx, cy, roi_polygon, frame_w, frame_h):
     return cv2.pointPolygonTest(pts, (cx, cy), False) >= 0
 
 
-def detect_single_image(model, device, weight_predictor, reid, image_path, chicken_class_id, roi_polygon=None):
+def detect_single_image(model, device, weight_predictor, image_path, chicken_class_id, roi_polygon=None):
     """Run detection on a single image. Returns annotated frame and results dict."""
     frame = cv2.imread(image_path)
     if frame is None:
@@ -352,7 +139,6 @@ def detect_single_image(model, device, weight_predictor, reid, image_path, chick
     )[0]
 
     detections = []
-    bboxes_for_reid = []
 
     if results.boxes is not None and len(results.boxes) > 0:
         for box in results.boxes:
@@ -383,20 +169,13 @@ def detect_single_image(model, device, weight_predictor, reid, image_path, chick
             cv2.rectangle(mask, (0, 0), (bw - 1, bh - 1), 255, -1)
             weight = weight_predictor.predict(mask)
 
-            bbox_dict = {"x": x1, "y": y1, "w": bw, "h": bh}
             detections.append({
-                "bbox": bbox_dict,
+                "bbox": {"x": x1, "y": y1, "w": bw, "h": bh},
                 "confidence": conf,
                 "class_id": cls_id,
                 "class_name": results.names.get(cls_id, str(cls_id)),
                 "weight": weight,
             })
-            bboxes_for_reid.append(bbox_dict)
-
-    embeddings = reid.extract(frame, bboxes_for_reid)
-    for det, emb in zip(detections, embeddings):
-        if emb is not None:
-            det["global_id"] = emb
 
     return frame, detections
 
@@ -456,7 +235,7 @@ def run_main():
     print("  Poultry Farm - Channel Image Processing")
     print("=" * 60)
 
-    model, device, weight_predictor, reid, chicken_class_id = load_all_models()
+    model, device, weight_predictor, chicken_class_id = load_all_models()
 
     output_dir = os.path.join(SCRIPT_DIR, "output_results")
     os.makedirs(output_dir, exist_ok=True)
@@ -485,7 +264,7 @@ def run_main():
             print(f"[{ch_dir}] Processing: {img_file} (ROI: {'yes' if roi else 'no'})")
 
             frame, detections = detect_single_image(
-                model, device, weight_predictor, reid, img_path, chicken_class_id, roi_polygon=roi
+                model, device, weight_predictor, img_path, chicken_class_id, roi_polygon=roi
             )
             if frame is None:
                 continue
