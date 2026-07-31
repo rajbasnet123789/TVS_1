@@ -114,26 +114,8 @@ export default function Dashboard() {
 
         const onlineCamerasList = cameras.filter((c: any) => c && c.status === 'online')
 
-        // Per-camera counts are served live over the WebSocket `counts` messages
-        // (see useWebSocket handler). Initialize channel stats from the detected
-        // list (each chicken carries the cameras it was seen on) so tiles render
-        // immediately instead of hitting /detection/stats per camera.
-        const perCamera = new Map<string, number>()
-        for (const ch of detected) {
-          const cams = Array.isArray(ch.cameras) ? ch.cameras : []
-          for (const camId of cams) {
-            perCamera.set(camId, (perCamera.get(camId) || 0) + 1)
-          }
-        }
-        const chanStats = cameras
-          .map((c: any) => ({
-            id: c.id,
-            name: c.name,
-            count: liveCountsMap.get(c.id) ?? (perCamera.get(c.id) || 0),
-            online: c.status === 'online' || c.enabled !== false,
-          }))
-          .sort((a: any, b: any) => a.name.localeCompare(b.name, undefined, { numeric: true }))
-        setChannelStats(chanStats)
+        // Channel counts are owned by the live WS path (see the liveCountsMap
+        // effect below) — this poll only refreshes the aggregate stats.
 
         const uniqueChickensCount = detected.length
         const alerts = cameras.filter((c: any) => c && c.status === 'offline').length
@@ -284,16 +266,6 @@ export default function Dashboard() {
         setChannelStats(next)
         setLogs((logs) => [...logEntries.reverse(), ...logs.slice(0, 19)])
       }
-    },
-    counts: (msg: any) => {
-      const entries = Array.isArray(msg?.counts) ? msg.counts : []
-      if (entries.length === 0) return
-      setChannelStats(prev =>
-        prev.map(ch => {
-          const match = entries.find((e: any) => e.camera_id === ch.id)
-          return match ? { ...ch, count: Number(match.count) || 0 } : ch
-        })
-      )
     }
   })
 

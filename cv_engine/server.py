@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import multiprocessing
+import time
 from contextlib import asynccontextmanager
 
 import httpx
@@ -83,18 +84,24 @@ async def _push_counts_loop() -> None:
         headers["X-Internal-Token"] = settings.CV_ENGINE_API_KEY
 
     interval = max(settings.COUNTS_PUSH_INTERVAL_SECONDS, 0.5)
+    ttl = settings.LIVE_COUNT_TTL_SECONDS
     while True:
         await asyncio.sleep(interval)
         if not _latest_counts:
             continue
-        payload = [
-            {
+        now = time.time()
+        payload = []
+        for cam_id, info in _latest_counts.items():
+            # Zero out cameras that stopped reporting so the UI never shows a
+            # stale count for an offline/stalled camera.
+            fresh = (now - float(info.get("ts", 0.0))) <= ttl
+            payload.append({
                 "camera_id": cam_id,
                 "farm_id": info.get("farm_id", ""),
-                "count": info.get("count", 0),
-            }
-            for cam_id, info in _latest_counts.items()
-        ]
+                "count": info.get("count", 0) if fresh else 0,
+            })
+        if not payload:
+            continue
         try:
             async with httpx.AsyncClient(timeout=5) as client:
                 await client.post(

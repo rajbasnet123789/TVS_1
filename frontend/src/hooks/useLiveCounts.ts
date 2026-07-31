@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import api from '../api/axios'
 import { subscribe } from './sharedSocket'
 
 export interface LiveCount {
@@ -9,11 +8,14 @@ export interface LiveCount {
 }
 
 let globalCounts = new Map<string, number>()
+let lastSeen = new Map<string, number>()
 let globalLoading = true
-let pollTimer: ReturnType<typeof setInterval> | null = null
+let pruneTimer: ReturnType<typeof setInterval> | null = null
 let consumerCount = 0
 
 const listeners = new Set<() => void>()
+
+const STALE_MS = 30000
 
 function updateGlobalState(newCounts: Map<string, number>, newLoading: boolean) {
   globalCounts = newCounts
@@ -24,42 +26,46 @@ function updateGlobalState(newCounts: Map<string, number>, newLoading: boolean) 
 function applyCountsMessage(msg: any) {
   const entries = Array.isArray(msg?.counts) ? msg.counts : []
   if (entries.length === 0) return
+  const now = Date.now()
   const next = new Map(globalCounts)
   for (const item of entries) {
     if (item?.camera_id) {
       next.set(item.camera_id, Number(item.count) || 0)
+      lastSeen.set(item.camera_id, now)
     }
   }
   updateGlobalState(next, false)
 }
 
-async function fetchLiveCounts() {
-  try {
-    const { data } = await api.get<LiveCount[]>('/detection/live-counts')
-    const map = new Map<string, number>()
-    for (const item of data) {
-      map.set(item.camera_id, item.count)
+// Safety net: if the WebSocket goes silent for a camera (or disconnects), decay
+// its count to zero instead of freezing a stale number on the UI.
+function pruneStale() {
+  const now = Date.now()
+  let changed = false
+  const next = new Map(globalCounts)
+  for (const [camId, last] of lastSeen) {
+    if (now - last > STALE_MS && next.has(camId)) {
+      next.delete(camId)
+      lastSeen.delete(camId)
+      changed = true
     }
-    updateGlobalState(map, false)
-  } catch {
-    updateGlobalState(globalCounts, false)
+  }
+  if (changed) updateGlobalState(next, false)
+}
+
+function startPruning(interval: number) {
+  if (pruneTimer) return
+  pruneTimer = setInterval(pruneStale, Math.max(interval, 1000))
+}
+
+function stopPruning() {
+  if (pruneTimer) {
+    clearInterval(pruneTimer)
+    pruneTimer = null
   }
 }
 
-function startPolling(interval: number) {
-  if (pollTimer) return
-  fetchLiveCounts()
-  pollTimer = setInterval(fetchLiveCounts, interval)
-}
-
-function stopPolling() {
-  if (pollTimer) {
-    clearInterval(pollTimer)
-    pollTimer = null
-  }
-}
-
-export function useLiveCounts(pollInterval = 3000) {
+export function useLiveCounts(interval = 3000) {
   const [state, setState] = useState({
     counts: globalCounts,
     loading: globalLoading,
@@ -80,7 +86,7 @@ export function useLiveCounts(pollInterval = 3000) {
         applyCountsMessage(msg)
       }
     })
-    startPolling(pollInterval)
+    startPruning(interval)
 
     return () => {
       listeners.delete(handleChange)
@@ -88,10 +94,10 @@ export function useLiveCounts(pollInterval = 3000) {
       unsubscribe()
       if (consumerCount <= 0) {
         consumerCount = 0
-        stopPolling()
+        stopPruning()
       }
     }
-  }, [pollInterval])
+  }, [interval])
 
   return { counts: state.counts, loading: state.loading }
 }

@@ -48,6 +48,13 @@ def _worker_main(
     min_interval = settings.INFERENCE_MIN_INTERVAL_MS / 1000.0
     last_inference_at = 0.0
 
+    # Rolling window of track IDs seen recently. The live count is the number
+    # of DISTINCT tracks seen in the last LIVE_COUNT_WINDOW_SECONDS seconds,
+    # which is far more stable than a per-frame box count (survives occlusion,
+    # missed frames, and ByteTrack ID-assignment hiccups).
+    live_window_sec = settings.LIVE_COUNT_WINDOW_SECONDS
+    recent_tracks: dict[int, float] = {}
+
     while not stop_event.is_set():
         now = time.monotonic()
         if now - last_inference_at < min_interval:
@@ -74,6 +81,7 @@ def _worker_main(
         last_inference_at = time.monotonic()
 
         event_batch = []
+        now_mono = time.monotonic()
 
         for det in detections:
             cx, cy, w, h = det["x"], det["y"], det["w"], det["h"]
@@ -84,6 +92,7 @@ def _worker_main(
                 if dist < 0:
                     continue
 
+            recent_tracks[det["track_id"]] = now_mono
             event_batch.append({
                 "camera_id": camera_id,
                 "farm_id": farm_id,
@@ -102,14 +111,19 @@ def _worker_main(
             except Exception:
                 pass
 
+        # Prune tracks that have not been seen within the live-count window.
+        for tid in [t for t, last in recent_tracks.items() if now_mono - last > live_window_sec]:
+            recent_tracks.pop(tid, None)
+
         # Publish a lightweight live-count event (skips InfluxDB; server pushes it
         # straight to the backend WebSocket so the UI updates in near-real-time).
+        # Count = distinct tracks seen in the window, not this frame's boxes.
         try:
             detection_queue.put_nowait({
                 "type": "count",
                 "camera_id": camera_id,
                 "farm_id": farm_id,
-                "count": len(event_batch),
+                "count": len(recent_tracks),
                 "ts": time.time(),
             })
         except Exception:
