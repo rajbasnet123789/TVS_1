@@ -30,9 +30,10 @@ export default function MediaGallery() {
       const { data } = await api.get('/media/list', {
         params: { prefix: 'snapshots' },
       })
+      const farmParam = currentFarm ? `?farm_id=${currentFarm.id}` : ''
       const apiItems: MediaItem[] = (data.objects || []).map((o: any) => ({
         key: o.key,
-        url: o.url,
+        url: `${o.url}${farmParam}`,
       }))
       const demoItems: MediaItem[] = buildMortalityMedia().map((m) => ({
         key: m.key,
