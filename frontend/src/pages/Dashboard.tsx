@@ -367,6 +367,8 @@ export default function Dashboard() {
   }
 
   const slots = cameras.slice(0, 3).map((c: any) => ({ id: c.id, name: c.name, location: c.location }))
+  const totalChannelSum = channelStats.reduce((acc, c) => acc + c.count, 0)
+  const activeChickensDisplay = totalChannelSum > 0 ? totalChannelSum : stats.chickens
 
   return (
     <Box sx={{ pb: 4 }}>
