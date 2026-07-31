@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
 COPY backend/pyproject.toml .
 RUN useradd --system --create-home appuser
 COPY --chown=appuser:appuser backend/ .
+RUN mkdir -p /var/opt/poultry/media && chown appuser:appuser /var/opt/poultry/media
 RUN pip install --no-cache-dir --default-timeout=1000 --retries=10 --upgrade pip setuptools wheel
 RUN pip install --no-cache-dir --default-timeout=1000 --retries=10 -e "."
 USER appuser
