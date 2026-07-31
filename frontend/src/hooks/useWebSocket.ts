@@ -1,74 +1,35 @@
 import { useEffect, useRef, useCallback } from 'react'
 import type { WebSocketMessage } from '../types'
 import { useAuth } from '../auth/AuthContext'
+import { subscribe, setSocketFarmId, type MessageHandler } from './sharedSocket'
 
-type MessageHandler = (msg: WebSocketMessage) => void
+type MessageHandlers = Record<string, MessageHandler>
 
-export function useWebSocket(handlers?: Record<string, MessageHandler>) {
+export function useWebSocket(handlers?: MessageHandlers) {
   const { currentFarm } = useAuth()
-  const wsRef = useRef<WebSocket | null>(null)
-  const reconnectTimeoutRef = useRef<number>()
-  const attemptRef = useRef(0)
-  const handlersRef = useRef(handlers)
+  const handlersRef = useRef<MessageHandlers | undefined>(handlers)
 
   useEffect(() => {
     handlersRef.current = handlers
   }, [handlers])
 
   const connect = useCallback(() => {
-    const API_BASE = import.meta.env.VITE_API_URL || '/api'
-    let wsUrl: string
-    if (API_BASE.startsWith('http://') || API_BASE.startsWith('https://')) {
-      wsUrl = `${API_BASE.replace(/^http/, 'ws')}/ws`
-    } else {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      wsUrl = `${protocol}//${window.location.host}/ws`
-    }
-    const farmId = currentFarm?.id || localStorage.getItem('selected_farm_id')
-    const impToken = localStorage.getItem('impersonation_token')
-    const queryParams: string[] = []
-    if (farmId) queryParams.push(`farm_id=${encodeURIComponent(farmId)}`)
-    if (impToken) queryParams.push(`token=${encodeURIComponent(impToken)}`)
-    if (queryParams.length > 0) {
-      wsUrl += `?${queryParams.join('&')}`
-    }
-    const ws = new WebSocket(wsUrl)
-
-    ws.onopen = () => {
-      attemptRef.current = 0
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current)
-        reconnectTimeoutRef.current = undefined
+    return subscribe((msg: WebSocketMessage) => {
+      const handler = handlersRef.current?.[msg.type]
+      if (handler) {
+        handler(msg)
       }
-    }
-
-    ws.onmessage = (event) => {
-      try {
-        const msg: WebSocketMessage = JSON.parse(event.data)
-        if (handlersRef.current?.[msg.type]) {
-          handlersRef.current[msg.type](msg)
-        }
-      } catch { /* ignore */ }
-    }
-
-    ws.onclose = () => {
-      if (!handlersRef.current) return
-      const delay = Math.min(1000 * 2 ** attemptRef.current, 30000)
-      const jitter = delay * (0.5 + Math.random() * 0.5)
-      attemptRef.current += 1
-      reconnectTimeoutRef.current = window.setTimeout(connect, jitter)
-    }
-
-    wsRef.current = ws
-  }, [currentFarm?.id])
+    })
+  }, [])
 
   useEffect(() => {
-    connect()
+    const farmId = currentFarm?.id || null
+    setSocketFarmId(farmId)
+    const unsubscribe = connect()
     return () => {
-      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
-      wsRef.current?.close()
+      unsubscribe()
     }
-  }, [connect])
+  }, [connect, currentFarm?.id])
 
-  return { ws: wsRef.current }
+  return {}
 }

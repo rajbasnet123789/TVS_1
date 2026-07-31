@@ -25,6 +25,10 @@ class Settings:
     INFERENCE_MIN_INTERVAL_MS: int = int(os.getenv("INFERENCE_MIN_INTERVAL_MS", "400"))
     # How often cv-engine pushes live per-camera counts to the backend (seconds).
     COUNTS_PUSH_INTERVAL_SECONDS: float = float(os.getenv("COUNTS_PUSH_INTERVAL_SECONDS", "1"))
+    # Output frame rate of the ffmpeg MJPEG capture loop. Frames are consumed
+    # by the inference loop (throttled by INFERENCE_MIN_INTERVAL_MS), so a low
+    # rate avoids wasted decode + copy work. No other consumer reads frames.
+    CAPTURE_FPS: int = int(os.getenv("CAPTURE_FPS", "5"))
 
 
 settings = Settings()

@@ -111,59 +111,37 @@ export default function Dashboard() {
         setDetectedChickens(detected)
 
         const onlineCamerasList = cameras.filter((c: any) => c && c.status === 'online')
-        // Fallback: if no cameras have status 'online' yet (status updates after first cv-engine sync),
-        // use all enabled cameras so the count doesn't stay stuck at 0.
-        const camerasToQuery = onlineCamerasList.length > 0
-          ? onlineCamerasList
-          : cameras.filter((c: any) => c && c.enabled !== false)
 
-        let totalDetections = 0
-        let uniqueChickensCount = 0
-        const chanStats: { id: string; name: string; count: number; online: boolean }[] = []
-
-        if (camerasToQuery.length > 0) {
-          await Promise.all(
-            camerasToQuery.slice(0, 8).map(async (c: any) => {
-              try {
-                const { data } = await api.get(`/cameras/${c.id}/detection/stats`)
-                const count = data?.unique_chickens || 0
-                totalDetections += data?.total_detections || 0
-                uniqueChickensCount += count
-                chanStats.push({
-                  id: c.id,
-                  name: c.name,
-                  count,
-                  online: c.status === 'online' || c.enabled !== false,
-                })
-              } catch (err) {
-                chanStats.push({
-                  id: c.id,
-                  name: c.name,
-                  count: 0,
-                  online: false,
-                })
-              }
-            })
-          )
+        // Per-camera counts are served live over the WebSocket `counts` messages
+        // (see useWebSocket handler). Initialize channel stats from the detected
+        // list (each chicken carries the cameras it was seen on) so tiles render
+        // immediately instead of hitting /detection/stats per camera.
+        const perCamera = new Map<string, number>()
+        for (const ch of detected) {
+          const cams = Array.isArray(ch.cameras) ? ch.cameras : []
+          for (const camId of cams) {
+            perCamera.set(camId, (perCamera.get(camId) || 0) + 1)
+          }
         }
-
-        chanStats.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+        const chanStats = cameras
+          .map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            count: perCamera.get(c.id) || 0,
+            online: c.status === 'online' || c.enabled !== false,
+          }))
+          .sort((a: any, b: any) => a.name.localeCompare(b.name, undefined, { numeric: true }))
         setChannelStats(chanStats)
 
+        const uniqueChickensCount = detected.length
         const alerts = cameras.filter((c: any) => c && c.status === 'offline').length
         const healthyPct = Math.min(100, Math.round(
           (onlineCamerasList.length / Math.max(cameras.length, 1)) * 60 +
           (uniqueChickensCount > 0 ? 40 : 0)
         ))
 
-        // Prefer uniqueChickensCount (from InfluxDB track IDs) as the authoritative live count.
-        // Fall back to detected.length (historical list) if InfluxDB has no recent data.
-        const chickenCount = uniqueChickensCount > 0
-          ? uniqueChickensCount
-          : (detected.length > 0 ? detected.length : 0)
-
         setStats({
-          chickens: chickenCount,
+          chickens: uniqueChickensCount,
           cameras: cameras.length,
           onlineCameras: onlineCamerasList.length,
           healthyPct,
@@ -263,6 +241,32 @@ export default function Dashboard() {
         },
         ...prev.slice(0, 19)
       ])
+    },
+    camera_status: (msg: any) => {
+      const updates = Array.isArray(msg?.updates) ? msg.updates : []
+      if (updates.length === 0) return
+      const byId = new Map(updates.map((u: any) => [u.camera_id, u.status]))
+      const logEntries: any[] = []
+      const next = channelStats.map(ch => {
+        const st = byId.get(ch.id)
+        if (st === undefined) return ch
+        const isOnline = st === 'online'
+        if (isOnline === ch.online) return ch
+        const now = new Date()
+        logEntries.push({
+          time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
+          type: isOnline ? 'system' : 'camera',
+          title: isOnline ? 'Camera reconnected' : 'Camera disconnected',
+          text: `${ch.name} ${isOnline ? 'came back online' : 'went offline'}`,
+          iconType: isOnline ? 'system' : 'camera',
+          color: isOnline ? '#10b981' : '#ef4444'
+        })
+        return { ...ch, online: isOnline }
+      })
+      if (logEntries.length > 0) {
+        setChannelStats(next)
+        setLogs((logs) => [...logEntries.reverse(), ...logs.slice(0, 19)])
+      }
     },
     counts: (msg: any) => {
       const entries = Array.isArray(msg?.counts) ? msg.counts : []

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import api from '../api/axios'
+import { subscribe } from './sharedSocket'
 
 export interface LiveCount {
   camera_id: string
@@ -11,10 +12,6 @@ let globalCounts = new Map<string, number>()
 let globalLoading = true
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let consumerCount = 0
-
-let ws: WebSocket | null = null
-let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null
-let wsAttempt = 0
 
 const listeners = new Set<() => void>()
 
@@ -49,63 +46,6 @@ async function fetchLiveCounts() {
   }
 }
 
-function buildWsUrl() {
-  const API_BASE = import.meta.env.VITE_API_URL || '/api'
-  let wsUrl: string
-  if (API_BASE.startsWith('http://') || API_BASE.startsWith('https://')) {
-    wsUrl = `${API_BASE.replace(/^http/, 'ws')}/ws`
-  } else {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    wsUrl = `${protocol}//${window.location.host}/ws`
-  }
-  const farmId = localStorage.getItem('selected_farm_id')
-  const impToken = localStorage.getItem('impersonation_token')
-  const queryParams: string[] = []
-  if (farmId) queryParams.push(`farm_id=${encodeURIComponent(farmId)}`)
-  if (impToken) queryParams.push(`token=${encodeURIComponent(impToken)}`)
-  if (queryParams.length > 0) {
-    wsUrl += `?${queryParams.join('&')}`
-  }
-  return wsUrl
-}
-
-function connectWs() {
-  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-    return
-  }
-  try {
-    ws = new WebSocket(buildWsUrl())
-  } catch {
-    return
-  }
-
-  ws.onopen = () => {
-    wsAttempt = 0
-    if (wsReconnectTimer) {
-      clearTimeout(wsReconnectTimer)
-      wsReconnectTimer = null
-    }
-  }
-
-  ws.onmessage = (event) => {
-    try {
-      const msg = JSON.parse(event.data)
-      if (msg?.type === 'counts') {
-        applyCountsMessage(msg)
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-
-  ws.onclose = () => {
-    const delay = Math.min(1000 * 2 ** wsAttempt, 30000)
-    const jitter = delay * (0.5 + Math.random() * 0.5)
-    wsAttempt += 1
-    wsReconnectTimer = setTimeout(connectWs, jitter)
-  }
-}
-
 function startPolling(interval: number) {
   if (pollTimer) return
   fetchLiveCounts()
@@ -134,23 +74,21 @@ export function useLiveCounts(pollInterval = 3000) {
     }
     listeners.add(handleChange)
     consumerCount++
-    connectWs()
+
+    const unsubscribe = subscribe((msg) => {
+      if (msg?.type === 'counts') {
+        applyCountsMessage(msg)
+      }
+    })
     startPolling(pollInterval)
 
     return () => {
       listeners.delete(handleChange)
       consumerCount--
-      if (consumerCount === 0) {
+      unsubscribe()
+      if (consumerCount <= 0) {
+        consumerCount = 0
         stopPolling()
-        if (wsReconnectTimer) {
-          clearTimeout(wsReconnectTimer)
-          wsReconnectTimer = null
-        }
-        if (ws) {
-          ws.onclose = null
-          ws.close()
-          ws = null
-        }
       }
     }
   }, [pollInterval])

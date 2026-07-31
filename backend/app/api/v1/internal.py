@@ -142,7 +142,48 @@ async def update_camera_statuses(
         len(running_ids),
         len(stopped_ids),
     )
+
+    await _broadcast_camera_status(db, running_ids, stopped_ids)
     return {"ok": True, "online": len(running_ids), "offline": len(stopped_ids)}
+
+
+async def _broadcast_camera_status(db: AsyncSession, running_ids: list[str], stopped_ids: list[str]) -> None:
+    """Push per-camera status changes over WebSocket so the UI updates without polling."""
+    from app.websocket.manager import manager
+
+    all_ids = list(running_ids) + list(stopped_ids)
+    if not all_ids:
+        return
+    result = await db.execute(select(Camera.id, Camera.farm_id).where(Camera.id.in_(all_ids)))
+    status_by_id: dict[str, tuple[str, str | None]] = {}
+    for cam_id, farm_id in result.all():
+        sid = str(cam_id)
+        status_by_id[sid] = (status_by_id.get(sid, ("", None))[0], str(farm_id) if farm_id else None)
+
+    for sid in running_ids:
+        _, farm_id = status_by_id.get(sid, ("", None))
+        status_by_id[sid] = ("online", farm_id)
+    for sid in stopped_ids:
+        _, farm_id = status_by_id.get(sid, ("", None))
+        status_by_id[sid] = ("offline", farm_id)
+
+    by_farm: dict[str, list[dict]] = {}
+    global_updates: list[dict] = []
+    for sid, (status, farm_id) in status_by_id.items():
+        entry = {"camera_id": sid, "status": status, "farm_id": farm_id}
+        global_updates.append(entry)
+        if farm_id:
+            by_farm.setdefault(farm_id, []).append(entry)
+
+    for farm_id, entries in by_farm.items():
+        await manager.broadcast(
+            f"farm_{farm_id}/camera_status",
+            {"type": "camera_status", "updates": entries, "farm_id": farm_id},
+        )
+    await manager.broadcast(
+        "camera_status",
+        {"type": "camera_status", "updates": global_updates, "farm_id": None},
+    )
 
 
 @router.get("/cameras")

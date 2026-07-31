@@ -3,9 +3,9 @@ import struct
 import subprocess
 import threading
 import time
-from pathlib import Path
 
 from cv_engine import frame_store
+from cv_engine.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +88,7 @@ class RtspCameraStream:
             "-i", target_url,
             "-f", "mjpeg",
             "-q:v", "3",
-            "-r", "25",
+            "-r", str(settings.CAPTURE_FPS),
             "pipe:1",
         ])
         self._process = subprocess.Popen(
@@ -139,5 +139,4 @@ class RtspCameraStream:
 
     def cleanup(self) -> None:
         self.stop()
-        Path(frame_store._raw_path(self.camera_id)).unlink(missing_ok=True)
-        Path(frame_store._annotated_path(self.camera_id)).unlink(missing_ok=True)
+        frame_store.publish(self.camera_id, b"")

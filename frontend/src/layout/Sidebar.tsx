@@ -4,7 +4,6 @@ import {
   Box, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText,
   Toolbar, Typography, Card, Select, MenuItem, FormControl
 } from '@mui/material'
-import api from '../api/axios'
 import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined'
 import MapOutlinedIcon from '@mui/icons-material/MapOutlined'
 import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
@@ -18,6 +17,7 @@ import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined'
 import LogoutIcon from '@mui/icons-material/Logout'
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined'
 import { useAuth } from '../auth/AuthContext'
+import { useCameras } from '../hooks/useCameras'
  
 const DRAWER_WIDTH = 240
  
@@ -53,36 +53,27 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
   const location = useLocation()
   const navigate = useNavigate()
   const { hasPermission, logout, user, farms, currentFarm, setCurrentFarm } = useAuth()
+  const { cameras } = useCameras()
   const [healthIndex, setHealthIndex] = useState(0)
   const [statusText, setStatusText] = useState('Loading...')
   const [dotColor, setDotColor] = useState('#94a3b8')
 
-  // Poll cameras to compute health index
+  // Camera statuses arrive live over WebSocket (camera_status) and are kept in
+  // the shared useCameras store — no polling needed here.
   useEffect(() => {
-    const fetchHealth = () => {
-      api.get('/cameras').catch(() => ({ data: [] })).then(async (camerasRes) => {
-        const camerasList = camerasRes.data
-        const onlineCount = camerasList.filter((c: any) => c.status === 'online').length
-        const alerts = camerasList.filter((c: any) => c.status === 'offline').length
-        const healthyPct = Math.min(100, Math.round(
-          (onlineCount / Math.max(camerasList.length, 1)) * 40 +
-          (1 - Math.min(alerts, 5) / 5) * 30 +
-          30 // assume detection activity for sidebar simplicity
-        ))
-        setHealthIndex(healthyPct)
-        if (healthyPct >= 80) { setStatusText('All systems normal'); setDotColor('#10b981') }
-        else if (healthyPct >= 50) { setStatusText('Attention needed'); setDotColor('#f59e0b') }
-        else { setStatusText('Critical'); setDotColor('#ef4444') }
-      }).catch(() => {
-        setHealthIndex(0)
-        setStatusText('Offline')
-        setDotColor('#94a3b8')
-      })
-    }
-    fetchHealth()
-    const interval = setInterval(fetchHealth, 10000)
-    return () => clearInterval(interval)
-  }, [])
+    const camerasList = cameras
+    const onlineCount = camerasList.filter((c: any) => c.status === 'online').length
+    const alerts = camerasList.filter((c: any) => c.status === 'offline').length
+    const healthyPct = Math.min(100, Math.round(
+      (onlineCount / Math.max(camerasList.length, 1)) * 40 +
+      (1 - Math.min(alerts, 5) / 5) * 30 +
+      30 // assume detection activity for sidebar simplicity
+    ))
+    setHealthIndex(healthyPct)
+    if (healthyPct >= 80) { setStatusText('All systems normal'); setDotColor('#10b981') }
+    else if (healthyPct >= 50) { setStatusText('Attention needed'); setDotColor('#f59e0b') }
+    else { setStatusText('Critical'); setDotColor('#ef4444') }
+  }, [cameras])
 
   // Circular progress gauge variables
   const radius = 38

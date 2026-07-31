@@ -1,7 +1,7 @@
 import logging
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from influxdb_client import InfluxDBClient
 
@@ -155,19 +155,26 @@ def query_detection_summary(
     validate_time_param(start, "start")
     validate_time_param(end, "end")
     client = _get_influx()
-    total_query = f'''
+
+    # Query 1: per-hour counts → total, active minutes, detections/hour
+    window_counts_query = f'''
         from(bucket: "{settings.influx_bucket}")
             |> range(start: {start}, stop: {end})
             |> filter(fn: (r) => r["camera_id"] == "{camera_id}")
             |> group()
-            |> count()
+            |> aggregateWindow(every: 1h, fn: count, createEmpty: false)
     '''
-    total = 0
-    for table in client.query_api().query(total_query):
+    window_counts = []
+    for table in client.query_api().query(window_counts_query):
         for record in table.records:
-            total += record.get_value() or 0
+            window_counts.append(record.get_value() or 0)
 
-    # track_id is a TAG — distinct() only works on fields. Group by tag to count uniques.
+    total = sum(window_counts)
+    hours = max(1, len(window_counts))
+    per_hour = round(total / hours, 1)
+    active_minutes = len(window_counts) * 60
+
+    # Query 2: unique track_ids seen (group per track_id → count groups)
     unique_query = f'''
         from(bucket: "{settings.influx_bucket}")
             |> range(start: {start}, stop: {end})
@@ -182,33 +189,7 @@ def query_detection_summary(
         for record in table.records:
             unique_count = record.get_value() or 0
 
-    window_counts_query = f'''
-        from(bucket: "{settings.influx_bucket}")
-            |> range(start: {start}, stop: {end})
-            |> filter(fn: (r) => r["camera_id"] == "{camera_id}")
-            |> group()
-            |> aggregateWindow(every: 1h, fn: count, createEmpty: false)
-    '''
-    window_counts = []
-    for table in client.query_api().query(window_counts_query):
-        for record in table.records:
-            window_counts.append(record.get_value() or 0)
-
-    # track_id is a TAG — group-per-tag + count is the correct pattern
-    peak_hc_query = f'''
-        from(bucket: "{settings.influx_bucket}")
-            |> range(start: {start}, stop: {end})
-            |> filter(fn: (r) => r["camera_id"] == "{camera_id}" and r["track_id"] != "-1" and r["_field"] == "confidence")
-            |> group(columns: ["track_id"])
-            |> count()
-            |> group()
-            |> count()
-    '''
-    peak_hc = 0
-    for table in client.query_api().query(peak_hc_query):
-        for record in table.records:
-            peak_hc = max(peak_hc, record.get_value() or 0)
-
+    # Query 3: mean confidence
     avg_conf_query = f'''
         from(bucket: "{settings.influx_bucket}")
             |> range(start: {start}, stop: {end})
@@ -221,14 +202,10 @@ def query_detection_summary(
         for record in table.records:
             avg_conf = record.get_value() or 0.0
 
-    hours = max(1, len(window_counts))
-    per_hour = round(total / hours, 1)
-    active_minutes = len(window_counts) * 60
-
     return {
         "total_detections": total,
         "unique_chickens": unique_count,
-        "peak_head_count": peak_hc,
+        "peak_head_count": unique_count,
         "avg_confidence": round(avg_conf, 3),
         "active_minutes": active_minutes,
         "detections_per_hour": per_hour,
@@ -284,134 +261,66 @@ def query_detected_chickens(
     end: str = "now()",
     farm_id: str | None = None,
 ) -> list[dict]:
+    """Return per-track summary stats for all tracked chickens in the window.
+
+    Uses a single aggregated Flux query (group by track_id + reduce) instead of
+    the previous N+1 pattern (4 separate queries per track_id).
+    """
+    validate_time_param(start, "start")
+    validate_time_param(end, "end")
     client = _get_influx()
-    if farm_id:
-        query = f'''
-            from(bucket: "{settings.influx_bucket}")
-                |> range(start: {start}, stop: {end})
-                |> filter(fn: (r) => r["track_id"] != "-1" and r["track_id"] != "None" and r["farm_id"] == "{farm_id}")
-                |> group(columns: ["track_id"])
-                |> count()
-        '''
-    else:
-        query = f'''
-            from(bucket: "{settings.influx_bucket}")
-                |> range(start: {start}, stop: {end})
-                |> filter(fn: (r) => r["track_id"] != "-1" and r["track_id"] != "None")
-                |> group(columns: ["track_id"])
-                |> count()
-        '''
-    track_ids = set()
-    for table in client.query_api().query(query):
-        for record in table.records:
-            tid = record.values.get("track_id")
-            if tid and tid not in ("-1", "None"):
-                try:
-                    track_ids.add(int(tid))
-                except (ValueError, TypeError):
-                    continue
-
-    results = []
-    for tid in sorted(track_ids):
-        stats_query = f'''
-            from(bucket: "{settings.influx_bucket}")
-                |> range(start: {start}, stop: {end})
-                |> filter(fn: (r) => r["track_id"] == string(v: "{tid}"))
-                |> group()
-                |> count()
-        '''
-        total = 0
-        for table in client.query_api().query(stats_query):
-            for record in table.records:
-                total += record.get_value() or 0
-
-        avg_conf_query = f'''
-            from(bucket: "{settings.influx_bucket}")
-                |> range(start: {start}, stop: {end})
-                |> filter(fn: (r) => r["track_id"] == string(v: "{tid}") and r["_field"] == "confidence")
-                |> group()
-                |> mean()
-        '''
-        avg_conf = 0.0
-        for table in client.query_api().query(avg_conf_query):
-            for record in table.records:
-                avg_conf = record.get_value() or 0.0
-
-        last_query = f'''
-            from(bucket: "{settings.influx_bucket}")
-                |> range(start: {start}, stop: {end})
-                |> filter(fn: (r) => r["track_id"] == string(v: "{tid}"))
-                |> group()
-                |> last()
-        '''
-        last_seen = None
-        first_seen = None
-        last_cameras = set()
-        for table in client.query_api().query(last_query):
-            for record in table.records:
-                last_seen = record.get_time()
-                cam = record.values.get("camera_id")
-                if cam:
-                    last_cameras.add(cam)
-
-        first_query = f'''
-            from(bucket: "{settings.influx_bucket}")
-                |> range(start: {start}, stop: {end})
-                |> filter(fn: (r) => r["track_id"] == string(v: "{tid}"))
-                |> group()
-                |> first()
-        '''
-        for table in client.query_api().query(first_query):
-            for record in table.records:
-                first_seen = record.get_time()
-                if first_seen:
-                    break
-
-        import datetime as dt
-        now = dt.datetime.now(dt.timezone.utc)
-        five_min_ago = now - dt.timedelta(minutes=5)
-        is_active = last_seen and last_seen > five_min_ago
-
-        results.append({
-            "track_id": tid,
-            "detections": total,
-            "avg_confidence": round(avg_conf, 3),
-            "last_seen": last_seen or now,
-            "first_seen": first_seen or now,
-            "cameras": list(last_cameras) if last_cameras else ["unknown"],
-            "status": "active" if is_active else "inactive",
-        })
-
-    return results
-
-
-def query_raw_detections(
-    camera_id: str,
-    start: str,
-    end: str,
-    limit: int = 100,
-) -> list[dict]:
-    client = _get_influx()
+    farm_filter = f' and r["farm_id"] == "{farm_id}"' if farm_id else ""
     query = f'''
         from(bucket: "{settings.influx_bucket}")
             |> range(start: {start}, stop: {end})
-            |> filter(fn: (r) => r["camera_id"] == "{camera_id}")
-            |> sort(columns: ["_time"], desc: true)
-            |> limit(n: {limit})
+            |> filter(fn: (r) => r["track_id"] != "-1" and r["track_id"] != "None"{farm_filter})
+            |> filter(fn: (r) => r["_field"] == "confidence")
+            |> group(columns: ["track_id"])
+            |> reduce(
+                identity: {{detections: 0, conf_sum: 0.0, first: 0, last: 0, cameras: ""}},
+                fn: (r, accumulator) => ({{
+                    detections: accumulator.detections + 1,
+                    conf_sum: accumulator.conf_sum + r._value,
+                    first: if accumulator.detections == 0 then int(v: r._time) else accumulator.first,
+                    last: int(v: r._time),
+                    cameras: accumulator.cameras + (if accumulator.cameras == "" then string(v: r.camera_id) else "," + string(v: r.camera_id)),
+                }})
+            )
     '''
-    results = []
+    now = datetime.now(timezone.utc)
+    five_min_ago = now - timedelta(minutes=5)
+
+    results: list[dict] = []
     for table in client.query_api().query(query):
         for record in table.records:
+            tid = record.values.get("track_id")
+            detections = int(record.values.get("detections") or 0)
+            conf_sum = float(record.values.get("conf_sum") or 0.0)
+            first_ns = int(record.values.get("first") or 0)
+            last_ns = int(record.values.get("last") or 0)
+            cameras_raw = record.values.get("cameras") or ""
+            cameras = [c for c in cameras_raw.split(",") if c]
+            cameras = list(dict.fromkeys(cameras)) or ["unknown"]
+
+            try:
+                tid_int = int(tid)
+            except (ValueError, TypeError):
+                continue
+
+            first_seen = datetime.fromtimestamp(first_ns / 1e9, tz=timezone.utc) if first_ns else now
+            last_seen = datetime.fromtimestamp(last_ns / 1e9, tz=timezone.utc) if last_ns else now
+
             results.append({
-                "time": record.get_time(),
-                "track_id": record.values.get("track_id"),
-                "class_name": record.values.get("class_name"),
-                "confidence": record.get_value_by_key("confidence"),
-                "x": record.get_value_by_key("x"),
-                "y": record.get_value_by_key("y"),
-                "w": record.get_value_by_key("w"),
-                "h": record.get_value_by_key("h"),
+                "track_id": tid_int,
+                "detections": detections,
+                "avg_confidence": round(conf_sum / detections, 3) if detections else 0.0,
+                "last_seen": last_seen,
+                "first_seen": first_seen,
+                "cameras": cameras,
+                "status": "active" if last_seen > five_min_ago else "inactive",
             })
+
+    results.sort(key=lambda r: r["track_id"])
     return results
 
 

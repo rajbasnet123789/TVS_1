@@ -49,6 +49,11 @@ def _worker_main(
     last_inference_at = 0.0
 
     while not stop_event.is_set():
+        now = time.monotonic()
+        if now - last_inference_at < min_interval:
+            time.sleep(0.05)
+            continue
+
         raw = frame_store.latest_bytes(camera_id)
         if not raw:
             time.sleep(0.1)
@@ -61,18 +66,12 @@ def _worker_main(
             continue
 
         backoff = 1.0
-
-        now = time.monotonic()
-        if now - last_inference_at < min_interval:
-            time.sleep(0.05)
-            continue
-
         detections = tracker.track(
             frame,
             conf_threshold=settings.DETECTION_CONFIDENCE,
             imgsz=settings.INFERENCE_IMGSZ,
         )
-        last_inference_at = now
+        last_inference_at = time.monotonic()
 
         event_batch = []
 

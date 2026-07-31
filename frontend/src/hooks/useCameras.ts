@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import api from '../api/axios'
 import type { Camera, DiscoveredDevice, ScanStatus } from '../types'
 import { useAuth } from '../auth/AuthContext'
+import { subscribe, setSocketFarmId } from './sharedSocket'
 
 // Global shared state for cameras to avoid out-of-sync states between components
 let globalCameras: Camera[] = []
@@ -17,6 +18,29 @@ function updateGlobalState(newCameras: Camera[], newLoading: boolean) {
   globalLoading = newLoading
   listeners.forEach((listener) => listener())
 }
+
+// Subscribe once to camera_status WebSocket messages so statuses stay live
+// without polling.
+subscribe((msg: any) => {
+  if (msg?.type !== 'camera_status' || !Array.isArray(msg.updates)) return
+  const updates = new Map<string, string>()
+  for (const u of msg.updates) {
+    if (u?.camera_id && u?.status) updates.set(u.camera_id, u.status)
+  }
+  if (updates.size === 0) return
+  const changed = globalCameras.some((c) => {
+    const st = updates.get(c.id)
+    return st !== undefined && st !== c.status
+  })
+  if (!changed) return
+  updateGlobalState(
+    globalCameras.map((c) => {
+      const st = updates.get(c.id)
+      return st !== undefined && st !== c.status ? { ...c, status: st } : c
+    }),
+    globalLoading
+  )
+})
 
 async function fetchCamerasGlobal(fetchId: number) {
   if (activeFetchPromise && fetchId === currentFetchId) {
@@ -57,7 +81,8 @@ export function useCameras() {
     }
     listeners.add(handleChange)
     
-    const farmId = currentFarm?.id
+    const farmId = currentFarm?.id ?? null
+    setSocketFarmId(farmId)
 
     // Only clear and fetch if the farm has changed or we haven't loaded yet
     if (lastFetchedFarmId !== farmId || (globalCameras.length === 0 && globalLoading && !activeFetchPromise)) {
