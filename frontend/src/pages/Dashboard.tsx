@@ -486,10 +486,10 @@ export default function Dashboard() {
           <Grid item xs={12} sm={6} md={6} lg={3}>
             <StatCard 
               title="Total Chickens" 
-              value={stats.chickens} 
+              value={activeChickensDisplay} 
               icon={<ChickenIcon />} 
               color="#f59e0b" 
-              subtitle="Tracked globally"
+              subtitle="Sum of all channels"
             />
           </Grid>
           <Grid item xs={12} sm={6} md={6} lg={3}>
@@ -507,10 +507,10 @@ export default function Dashboard() {
           <Grid item xs={12} sm={6} md={6} lg={3}>
             <StatCard 
               title="Active Chickens" 
-              value={stats.chickens} 
+              value={activeChickensDisplay} 
               icon={<ChickenIcon />} 
               color="#10b981" 
-              subtitle={stats.chickens > 0 ? "Tracking live" : "No chickens detected"}
+              subtitle="Sum of all channels"
             />
           </Grid>
           <Grid item xs={12} sm={6} md={6} lg={3}>
@@ -556,7 +556,7 @@ export default function Dashboard() {
               </Typography>
             </Box>
             <Chip 
-              label={`${stats.chickens} Unique Farm Chickens (${channelStats.reduce((acc, c) => acc + c.count, 0)} Channel Total)`} 
+              label={`${activeChickensDisplay} Total Live Chickens`} 
               size="small" 
               sx={{ bgcolor: '#10b981', color: '#ffffff', fontWeight: 700, fontFamily: '"Outfit", sans-serif', px: 0.5 }} 
             />
