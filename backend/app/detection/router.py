@@ -211,29 +211,29 @@ async def live_per_camera_counts(
     user: User = Depends(require_permission("dashboard:read")),
     farm_id: str | None = Depends(get_farm_id),
 ):
-    """Return the count of unique chickens (by track_id) seen per camera in the last 2 minutes.
+    """Return the count of unique chickens (by track_id) seen per camera in the last 15 minutes.
 
     Response: [{camera_id, camera_name, count}] sorted by camera name.
     """
     try:
         from app.detection.queries import query_per_camera_live_counts
-        counts = await asyncio.to_thread(query_per_camera_live_counts, farm_id=farm_id, window_minutes=2)
+        counts = await asyncio.to_thread(query_per_camera_live_counts, farm_id=farm_id, window_minutes=15)
+        count_map = {r["camera_id"]: r["count"] for r in counts}
 
-        # Join with camera names from PostgreSQL
-        camera_ids = [r["camera_id"] for r in counts]
-        if camera_ids:
-            result = await db.execute(select(Camera).where(Camera.id.in_(camera_ids)))
-            cam_map = {str(c.id): c.name for c in result.scalars().all()}
+        # Query all cameras in PostgreSQL for this farm so every camera gets an entry
+        if farm_id:
+            result = await db.execute(select(Camera).where(Camera.farm_id == farm_id))
         else:
-            cam_map = {}
+            result = await db.execute(select(Camera))
+        all_cameras = result.scalars().all()
 
         enriched = [
             {
-                "camera_id": r["camera_id"],
-                "camera_name": cam_map.get(r["camera_id"], r["camera_id"]),
-                "count": r["count"],
+                "camera_id": str(cam.id),
+                "camera_name": cam.name,
+                "count": count_map.get(str(cam.id), 0),
             }
-            for r in counts
+            for cam in all_cameras
         ]
         # Sort by camera name so channels appear in order
         enriched.sort(key=lambda x: x["camera_name"])

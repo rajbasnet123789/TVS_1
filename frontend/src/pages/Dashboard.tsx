@@ -32,6 +32,7 @@ import { StatCard } from '../components/StatCard'
 import { CameraFeed } from '../components/CameraFeed'
 import { CameraVideoModal } from '../components/CameraVideoModal'
 import { useWebSocket } from '../hooks/useWebSocket'
+import { useLiveCounts } from '../hooks/useLiveCounts'
 import { useAuth } from '../auth/AuthContext'
 import { useCameras } from '../hooks/useCameras'
 
@@ -47,6 +48,7 @@ interface LogEntry {
 export default function Dashboard() {
   const { user, farms, currentFarm, setCurrentFarm } = useAuth()
   const { cameras } = useCameras()
+  const { counts: liveCountsMap } = useLiveCounts(3000)
   const navigate = useNavigate()
   const [stats, setStats] = useState({ chickens: 0, cameras: 0, onlineCameras: 0, healthyPct: 0, alerts: 0 })
   const [channelStats, setChannelStats] = useState<{ id: string; name: string; count: number; online: boolean }[]>([])
@@ -127,7 +129,7 @@ export default function Dashboard() {
           .map((c: any) => ({
             id: c.id,
             name: c.name,
-            count: perCamera.get(c.id) || 0,
+            count: liveCountsMap.get(c.id) ?? (perCamera.get(c.id) || 0),
             online: c.status === 'online' || c.enabled !== false,
           }))
           .sort((a: any, b: any) => a.name.localeCompare(b.name, undefined, { numeric: true }))
@@ -164,6 +166,21 @@ export default function Dashboard() {
       Object.values(activeCoopTimeouts.current).forEach(t => window.clearTimeout(t))
     }
   }, [currentFarm, cameras])
+
+  // Synchronize channelStats state whenever liveCountsMap updates
+  useEffect(() => {
+    if (!cameras || cameras.length === 0) return
+    setChannelStats(
+      cameras
+        .map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          count: liveCountsMap.get(c.id) ?? 0,
+          online: c.status === 'online' || c.enabled !== false,
+        }))
+        .sort((a: any, b: any) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+    )
+  }, [cameras, liveCountsMap])
 
   // WebSocket alerts and telemetry listener
   useWebSocket({
@@ -539,7 +556,7 @@ export default function Dashboard() {
               </Typography>
             </Box>
             <Chip 
-              label={`${stats.chickens} Total Live Chickens`} 
+              label={`${stats.chickens} Unique Farm Chickens (${channelStats.reduce((acc, c) => acc + c.count, 0)} Channel Total)`} 
               size="small" 
               sx={{ bgcolor: '#10b981', color: '#ffffff', fontWeight: 700, fontFamily: '"Outfit", sans-serif', px: 0.5 }} 
             />

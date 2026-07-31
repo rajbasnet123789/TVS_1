@@ -324,7 +324,7 @@ def query_detected_chickens(
     return results
 
 
-def query_per_camera_live_counts(farm_id: str | None = None, window_minutes: int = 2) -> list[dict]:
+def query_per_camera_live_counts(farm_id: str | None = None, window_minutes: int = 15) -> list[dict]:
     """Return the count of unique track_ids seen per camera in the last `window_minutes` minutes.
 
     track_id is stored as a TAG. To count unique values we group by (camera_id, track_id),
