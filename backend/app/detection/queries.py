@@ -334,7 +334,6 @@ def query_per_camera_live_counts(farm_id: str | None = None, window_minutes: int
     Returns a list of {camera_id, count} sorted by camera_id.
     """
     client = _get_influx()
-    farm_filter = f'and r["farm_id"] == "{farm_id}"' if farm_id else ""
     query = f'''
         from(bucket: "{settings.influx_bucket}")
             |> range(start: -{window_minutes}m)
@@ -342,7 +341,6 @@ def query_per_camera_live_counts(farm_id: str | None = None, window_minutes: int
                 r["_field"] == "confidence"
                 and r["track_id"] != "-1"
                 and r["track_id"] != "None"
-                {farm_filter}
             )
             |> group(columns: ["camera_id", "track_id"])
             |> count()

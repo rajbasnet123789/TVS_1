@@ -149,20 +149,32 @@ export default function Dashboard() {
     }
   }, [currentFarm, cameras])
 
-  // Synchronize channelStats state whenever liveCountsMap updates
+  // Synchronize channelStats state whenever liveCountsMap or detectedChickens updates
   useEffect(() => {
     if (!cameras || cameras.length === 0) return
+    const perCamera = new Map<string, number>()
+    for (const ch of detectedChickens) {
+      const cams = Array.isArray(ch.cameras) ? ch.cameras : []
+      for (const camId of cams) {
+        perCamera.set(camId, (perCamera.get(camId) || 0) + 1)
+      }
+    }
+
     setChannelStats(
       cameras
-        .map((c: any) => ({
-          id: c.id,
-          name: c.name,
-          count: liveCountsMap.get(c.id) ?? 0,
-          online: c.status === 'online' || c.enabled !== false,
-        }))
+        .map((c: any) => {
+          const liveCount = liveCountsMap.get(c.id)
+          const fallbackCount = perCamera.get(c.id) || 0
+          return {
+            id: c.id,
+            name: c.name,
+            count: liveCount !== undefined && liveCount > 0 ? liveCount : fallbackCount,
+            online: c.status === 'online' || c.enabled !== false,
+          }
+        })
         .sort((a: any, b: any) => a.name.localeCompare(b.name, undefined, { numeric: true }))
     )
-  }, [cameras, liveCountsMap])
+  }, [cameras, liveCountsMap, detectedChickens])
 
   // WebSocket alerts and telemetry listener
   useWebSocket({
