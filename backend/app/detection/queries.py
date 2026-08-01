@@ -104,7 +104,7 @@ def _query_headcount_snapshot(client: InfluxDBClient, camera_id: str | None, sta
     for table in client.query_api().query(query):
         for record in table.records:
             result.append({
-                "time": end.replace("now()", datetime.now(UTC).isoformat() + "Z") if end == "now()" else end,
+                "time": end.replace("now()", datetime.now(UTC).isoformat().replace("+00:00", "Z")) if end == "now()" else end,
                 "value": record.get_value() or 0,
             })
     return result
