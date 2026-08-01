@@ -3,15 +3,28 @@ import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.deps import get_current_user, get_farm_id, require_permission
+from app.auth.deps import get_farm_id, require_permission
 from app.auth.models import User
 from app.cameras.models import Camera
 from app.cameras.onvif import discover_onvif_devices
-from app.cameras.schemas import AssignCoopRequest, CameraCreate, CameraOut, CameraUpdate, DiscoveredDevice, ScanStatus
-from app.cameras.service import create_camera, delete_camera, get_camera, list_cameras, update_camera
-from app.config import settings
+from app.cameras.schemas import (
+    AssignCoopRequest,
+    CameraCreate,
+    CameraOut,
+    CameraUpdate,
+    DiscoveredDevice,
+    ScanStatus,
+)
+from app.cameras.service import (
+    create_camera,
+    delete_camera,
+    get_camera,
+    list_cameras,
+    update_camera,
+)
 from app.database import get_db
 from app.rate_limit import limiter
+
 
 def extract_ip_from_rtsp(rtsp_url: str) -> str | None:
     if not rtsp_url:
@@ -30,7 +43,6 @@ _scan_state: dict = {"scanning": False, "progress": None, "devices": [], "error"
 
 
 async def cancel_active_scan():
-    global _scan_state
     task = _scan_state.get("task")
     if task and not task.done():
         task.cancel()
@@ -83,7 +95,6 @@ async def scan_network(
     request: Request,
     user: User = Depends(require_permission("cameras:scan")),
 ):
-    global _scan_state
     
     # Cancel previous task if still running
     prev_task = _scan_state.get("task")
@@ -236,6 +247,7 @@ async def fix_camera_channels(
     db: AsyncSession = Depends(get_db),
 ):
     import re
+
     from sqlalchemy import select
     result = await db.execute(select(Camera).order_by(Camera.created_at.asc()))
     cameras = result.scalars().all()

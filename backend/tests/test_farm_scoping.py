@@ -1,14 +1,14 @@
-import pytest
 import uuid
-from unittest.mock import AsyncMock, patch
+
+import pytest
 
 
 @pytest.mark.asyncio
 async def test_camera_stats_wrong_farm_returns_404(client, db_session):
     from app.auth.service import seed_roles, seed_super_admin
+    from app.cameras.models import Camera
     from app.config import settings
     from app.farms.models import Farm
-    from app.cameras.models import Camera
 
     await seed_roles(db_session)
     await seed_super_admin(db_session)
@@ -20,7 +20,6 @@ async def test_camera_stats_wrong_farm_returns_404(client, db_session):
     })
     assert login.status_code == 200
     token = login.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
 
     farm2 = Farm(id=uuid.uuid4(), name="Farm 2", slug="farm-2", is_active=True)
     db_session.add(farm2)
@@ -38,8 +37,8 @@ async def test_camera_stats_wrong_farm_returns_404(client, db_session):
 @pytest.mark.asyncio
 async def test_camera_history_wrong_farm_returns_404(client, db_session):
     from app.auth.service import seed_roles, seed_super_admin
-    from app.config import settings
     from app.cameras.models import Camera
+    from app.config import settings
     from app.farms.models import Farm
 
     await seed_roles(db_session)
@@ -67,9 +66,9 @@ async def test_camera_history_wrong_farm_returns_404(client, db_session):
 
 @pytest.mark.asyncio
 async def test_alert_acknowledge_wrong_farm_returns_404(client, db_session):
+    from app.alerts.models import Alert
     from app.auth.service import seed_roles, seed_super_admin
     from app.config import settings
-    from app.alerts.models import Alert
     from app.farms.models import Farm
 
     await seed_roles(db_session)
@@ -86,8 +85,8 @@ async def test_alert_acknowledge_wrong_farm_returns_404(client, db_session):
     db_session.add(farm)
     await db_session.commit()
 
-    alert = Alert(id=uuid.uuid4(), farm_id=farm.id, title="Test Alert", severity="info",
-                  message="test", source="camera", is_acknowledged=False)
+    alert = Alert(id=uuid.uuid4(), farm_id=farm.id, type="test", severity=1,
+                  message="test")
     db_session.add(alert)
     await db_session.commit()
 
@@ -98,9 +97,9 @@ async def test_alert_acknowledge_wrong_farm_returns_404(client, db_session):
 
 @pytest.mark.asyncio
 async def test_alert_rule_update_wrong_farm_returns_404(client, db_session):
+    from app.alerts.models import AlertRule
     from app.auth.service import seed_roles, seed_super_admin
     from app.config import settings
-    from app.alerts.models import AlertRule
     from app.farms.models import Farm
 
     await seed_roles(db_session)

@@ -1,10 +1,11 @@
 import logging
+from datetime import UTC, datetime, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from datetime import datetime, timezone, timedelta
 
 from app.auth.deps import get_current_user, get_farm_id, require_permission
 from app.auth.models import DeletionRequest, Role, User
@@ -18,19 +19,18 @@ from app.auth.schemas import (
     TokenRefreshRequest,
     TokenResponse,
     UserCreate,
-    UserUpdate,
     UserOut,
+    UserUpdate,
 )
 from app.auth.service import (
+    blacklist_token,
     create_access_token,
     create_refresh_token,
     decode_token,
     hash_password,
-    verify_password,
-    blacklist_token,
     is_refresh_token_used,
     mark_refresh_token_used,
-    PERMISSION_MAP,
+    verify_password,
 )
 from app.config import settings
 from app.database import get_db
@@ -175,7 +175,7 @@ async def login(request: Request, response: Response, data: LoginRequest, db: As
     role_result = await db.execute(select(Role).where(Role.id == user.role_id))
     role = role_result.scalar_one_or_none()
 
-    user.last_login = datetime.now(timezone.utc)
+    user.last_login = datetime.now(UTC)
     await db.commit()
 
     farm_id = str(user.farm_id) if user.farm_id else None
@@ -348,9 +348,8 @@ async def update_user(
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if user.role.name != "super_admin":
-        if target.farm_id is None or str(target.farm_id) != str(user.farm_id):
-            raise HTTPException(status_code=403, detail="Access denied")
+    if user.role.name != "super_admin" and (target.farm_id is None or str(target.farm_id) != str(user.farm_id)):
+        raise HTTPException(status_code=403, detail="Access denied")
 
     if data.role_name is not None:
         role_result = await db.execute(select(Role).where(Role.name == data.role_name))
@@ -450,7 +449,7 @@ async def login_google(data: GoogleLoginRequest, response: Response, db: AsyncSe
     role_result = await db.execute(select(Role).where(Role.id == user.role_id))
     role = role_result.scalar_one_or_none()
 
-    user.last_login = datetime.now(timezone.utc)
+    user.last_login = datetime.now(UTC)
     await db.commit()
 
     farm_id = str(user.farm_id) if user.farm_id else None
@@ -534,9 +533,8 @@ async def approve_deletion_request(
     if deletion_request.user_id:
         user_result = await db.execute(select(User).where(User.id == deletion_request.user_id))
         target_user = user_result.scalar_one_or_none()
-    if farm_id:
-        if not target_user or str(target_user.farm_id) != farm_id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    if farm_id and (not target_user or str(target_user.farm_id) != farm_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     if target_user:
         role_result = await db.execute(select(Role).where(Role.id == target_user.role_id))
         target_role = role_result.scalar_one_or_none()
@@ -545,7 +543,7 @@ async def approve_deletion_request(
         await db.delete(target_user)
 
     deletion_request.status = "completed"
-    deletion_request.processed_at = datetime.now(timezone.utc)
+    deletion_request.processed_at = datetime.now(UTC)
     deletion_request.processed_by = user.email
     await db.commit()
 
@@ -568,13 +566,12 @@ async def reject_deletion_request(
     if deletion_request.user_id:
         user_result = await db.execute(select(User).where(User.id == deletion_request.user_id))
         target_user = user_result.scalar_one_or_none()
-    if farm_id:
-        if not target_user or str(target_user.farm_id) != farm_id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    if farm_id and (not target_user or str(target_user.farm_id) != farm_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     if target_user and not target_user.is_active:
         target_user.is_active = True
 
     deletion_request.status = "rejected"
-    deletion_request.processed_at = datetime.now(timezone.utc)
+    deletion_request.processed_at = datetime.now(UTC)
     deletion_request.processed_by = user.email
     await db.commit()

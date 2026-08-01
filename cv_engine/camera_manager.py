@@ -3,6 +3,7 @@ import multiprocessing
 import time
 import typing
 
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -13,7 +14,9 @@ from cv_engine.config import settings
 logger = logging.getLogger(__name__)
 
 
-import json
+def _is_go2rtc_source(rtsp_url: str) -> bool:
+    """Return True when the URL already points at the local go2rtc restream server."""
+    return any(k in rtsp_url for k in ("8554", "localhost", "127.0.0.1", "go2rtc"))
 
 
 def _format_go2rtc_src(rtsp_url: str) -> list[str]:
@@ -57,44 +60,42 @@ def _format_go2rtc_src(rtsp_url: str) -> list[str]:
         return [rtsp_url]
 
 
-def _register_go2rtc_stream(camera_id: str, rtsp_url: str) -> str:
-    """Register camera stream source in go2rtc via REST API and return go2rtc RTSP re-stream URL."""
-    if "8554" in rtsp_url or "localhost" in rtsp_url or "127.0.0.1" in rtsp_url:
-        return rtsp_url
+def _register_go2rtc_stream(camera_id: str, rtsp_url: str) -> bool:
+    """Register the camera source in go2rtc via REST API.
+
+    Returns True when go2rtc will serve the stream over RTSP at
+    ``{GO2RTC_RTSP_URL}/{camera_id}``. go2rtc creates the stream in-memory even
+    when its config file is mounted read-only (it fails to persist and returns
+    HTTP 400 — that is NOT a registration failure, the stream still works).
+    """
+    if _is_go2rtc_source(rtsp_url):
+        return True
 
     sources = _format_go2rtc_src(rtsp_url)
     primary_src = sources[0] if sources else rtsp_url
 
-    # Method 1: PUT /api/streams?name=...&src=...
     try:
         query = urllib.parse.urlencode({"name": camera_id, "src": primary_src})
         url = f"{settings.GO2RTC_API_URL}/api/streams?{query}"
         req = urllib.request.Request(url, method="PUT")
         with urllib.request.urlopen(req, timeout=3) as resp:
             if resp.status in (200, 201):
-                logger.info("Registered stream %s in go2rtc (PUT query: %s)", camera_id, primary_src)
-                return f"{settings.GO2RTC_RTSP_URL}/{camera_id}"
-    except Exception as e:
-        logger.debug("go2rtc PUT query failed for %s: %s", camera_id, e)
-
-    # Method 2: POST /api/streams with JSON payload {"name": camera_id, "src": sources}
-    try:
-        url = f"{settings.GO2RTC_API_URL}/api/streams"
-        payload = json.dumps({"name": camera_id, "src": sources}).encode("utf-8")
-        req = urllib.request.Request(
-            url,
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=3) as resp:
-            if resp.status in (200, 201):
-                logger.info("Registered stream %s in go2rtc (POST json)", camera_id)
-                return f"{settings.GO2RTC_RTSP_URL}/{camera_id}"
+                logger.info("Registered stream %s in go2rtc", camera_id)
+                return True
+    except urllib.error.HTTPError as e:
+        body = ""
+        try:
+            body = e.read().decode("utf-8", errors="replace").strip()
+        except Exception:
+            pass
+        if e.code == 400 and "read-only" in body:
+            # Stream was created in-memory; only the config-file write failed.
+            logger.info("Registered stream %s in go2rtc (in-memory, config read-only)", camera_id)
+            return True
+        logger.warning("Failed to register stream %s in go2rtc (HTTP %s): %s", camera_id, e.code, body or e)
     except Exception as e:
         logger.warning("Failed to register stream %s in go2rtc: %s", camera_id, e)
-
-    return f"{settings.GO2RTC_RTSP_URL}/{camera_id}"
+    return False
 
 
 class CameraManager:
@@ -102,11 +103,52 @@ class CameraManager:
         self._detection_queue = detection_queue
         self._workers: dict[str, typing.Any] = {}
         self._stop_events: dict[str, typing.Any] = {}
+        # go2rtc registration state per camera: source last registered, last
+        # result, and when that registration was attempted.
+        self._go2rtc_source: dict[str, str] = {}
+        self._go2rtc_ok: dict[str, bool] = {}
+        self._go2rtc_attempt: dict[str, float] = {}
+
+    def _go2rtc_target(self, camera_id: str, rtsp_url: str) -> str:
+        """Return the URL the worker should open to reach this camera's stream."""
+        if _is_go2rtc_source(rtsp_url):
+            return rtsp_url
+        return f"{settings.GO2RTC_RTSP_URL}/{camera_id}"
+
+    def _ensure_go2rtc_streams(self, cameras: list[dict]) -> None:
+        """Register camera sources in go2rtc, but only when needed.
+
+        Registration only happens when the source changed, the previous attempt
+        failed (with backoff), or the registration is stale (go2rtc may have
+        restarted and lost its in-memory streams). This replaces the old
+        behaviour of re-registering every camera on every sync, which spammed
+        the logs with failures for cameras whose go2rtc config is read-only.
+        """
+        now = time.monotonic()
+        refresh = settings.GO2RTC_REGISTER_REFRESH_SECONDS
+        failure_backoff = 30.0
+        for cam in cameras:
+            cam_id = cam["id"]
+            source = cam.get("rtsp_url", "")
+            if _is_go2rtc_source(source):
+                continue
+            prev = self._go2rtc_source.get(cam_id)
+            last = self._go2rtc_attempt.get(cam_id, 0.0)
+            ok = self._go2rtc_ok.get(cam_id, False)
+            changed = prev != source
+            failed_recently = not ok and (now - last) >= failure_backoff
+            stale = (now - last) >= refresh
+            if not (changed or failed_recently or stale):
+                continue
+            registered = _register_go2rtc_stream(cam_id, source)
+            self._go2rtc_source[cam_id] = source
+            self._go2rtc_ok[cam_id] = registered
+            self._go2rtc_attempt[cam_id] = now
 
     def sync_cameras(self, cameras: list[dict]) -> None:
-        # Register all active cameras in go2rtc on every sync loop
-        for cam in cameras:
-            _register_go2rtc_stream(cam["id"], cam["rtsp_url"])
+        # Ensure every camera has a (re)registered go2rtc stream before workers
+        # start pulling from it.
+        self._ensure_go2rtc_streams(cameras)
 
         desired_ids = {c["id"] for c in cameras}
         current_ids = set(self._workers.keys())
@@ -139,8 +181,9 @@ class CameraManager:
         if camera_id in self._workers and self._workers[camera_id].is_alive():
             return
 
-        # Register stream in go2rtc and get the go2rtc re-stream URL
-        rtsp_target = _register_go2rtc_stream(camera_id, camera_config["rtsp_url"])
+        # Stream is registered in go2rtc by _ensure_go2rtc_streams; the worker
+        # pulls the go2rtc re-stream URL (or the original URL if it already is one).
+        rtsp_target = self._go2rtc_target(camera_id, camera_config.get("rtsp_url", ""))
 
         stop_event = multiprocessing.Event()
         proc = multiprocessing.Process(

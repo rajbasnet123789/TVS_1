@@ -1,5 +1,5 @@
+
 from pydantic import BaseModel, Field
-from typing import Optional
 
 
 class ProfitLossInput(BaseModel):
@@ -34,5 +34,5 @@ class ProfitLossResult(BaseModel):
     profit_margin_percent: float
 
     is_profitable: bool
-    avg_health_score: Optional[float] = None
-    current_headcount: Optional[int] = None
+    avg_health_score: float | None = None
+    current_headcount: int | None = None

@@ -1,8 +1,10 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.auth.deps import get_current_user, get_farm_id, require_permission
 from app.auth.models import User
 from app.cameras.models import Camera
@@ -60,7 +62,7 @@ async def list_coops(
             id=UUID("00000000-0000-0000-0000-000000000000"),
             name="Unassigned",
             sort_order=9999,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             cameras=[_enrich_camera(c) for c in sorted(unassigned, key=lambda x: x.name or "")],
         ))
 

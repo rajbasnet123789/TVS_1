@@ -11,7 +11,8 @@ persistent_summary:
   - Authorization Bearer header takes priority over httpOnly cookie so impersonation tokens can override the admin session cookie.
 
   ## Actual Architecture (as of last audit)
-  - **CV pipeline**: Custom cv_engine/ service using YOLOv8 + OpenCV + FFmpeg. No Frigate, no HLS, no go2rtc.
+  - **CV pipeline**: Custom cv_engine/ service using YOLOv8 + OpenCV + FFmpeg. No Frigate, no HLS.
+  - **go2rtc**: Used in production (docker-compose service, host network, read-only config mount) as an RTSP aggregator. cv-engine registers cameras via `PUT /api/streams?name=...&src=...`. Camera_worker consumes `rtsp://localhost:8554/{camera_id}`.
   - **Streaming**: Annotated JPEG frames via /cvws/{cam_id} WebSocket (cv-engine) + MJPEG fallback. No HLS.
   - **Media storage**: Local filesystem (/var/opt/poultry/media/farms/{farm_id}/). No MinIO/S3.
   - **MQTT**: Mosquitto is running but no code currently subscribes or publishes. Reserved for future use.
@@ -41,6 +42,14 @@ persistent_summary:
     - WebSocket /ws token extraction fixed: websocket.query_params.get("token") instead of broken FastAPI param binding.
     - Deleted stale backend/test.jpg stub file.
   - Hardcoded mortality demo (session 2026-08-01): frontend/src/demo/mortality.ts merges hardcoded "mortality" alerts + 2 photos (frontend/public/mortality/Mortality.jpg, Mortality2.jpg) into Alerts.tsx (red MORTALITY rows, local acknowledge for demo- ids) and MediaGallery.tsx (red "DEAD CHICKEN DETECTED" chip cards). Not backed by a real health/mortality model.
+  - go2rtc + CI/CD restoration (session 2026-08-01):
+    - Root cause of prod go2rtc 400/404 log errors: go2rtc config mounted read-only (`:ro`), so its `PUT /api/streams` API returns HTTP 400 `open /config/go2rtc.yaml: read-only file system` even though the stream registers in-memory and works. Re-registration on every ~10s camera sync duplicated calls. `ch5` in go2rtc.yaml has no DVR camera and yields 404s.
+    - Rewrote cv_engine/camera_manager.py: `_is_go2rtc_source()`, `_register_go2rtc_stream()` returns bool and treats 400-with-"read-only" as success, dropped broken JSON POST fallback; new `CameraManager._go2rtc_target()` and `_ensure_go2rtc_streams()` with per-camera state + retry (re-register only on source change, prior failure with 30s backoff, or >GO2RTC_REGISTER_REFRESH_SECONDS stale). sync_cameras() calls it before start_camera().
+    - cv_engine/config.py: added GO2RTC_REGISTER_REFRESH_SECONDS (default 300). .env.example documents it.
+    - Fixed failing backend tests (blocked Deploy): tests/test_alerts_and_health.py::test_get_unacknowledged_count and tests/test_farm_scoping.py::test_alert_acknowledge_wrong_farm_returns_404 used stale Alert fields / omitted required farm_id. 69/69 pass locally.
+    - Ruff: added [tool.ruff] config in backend/pyproject.toml (target-version py311; flake8-bugbear.extend-immutable-calls = [fastapi.Depends, app.auth.deps.require_permission] to clear 180 B008; ignore BLE001 + S110 as intentional defensive patterns), auto-fixed 202 violations (imports, unused imports, datetime UTC, PEP 604 unions), manually fixed 19 (SIM102 collapsible-if, F841 unused vars, PLW0602 stale `global`, DTZ003 utcnow, G201 logger.exception, TRY201 bare raise, RUF059, F402 loop-var shadowing). `ruff check .` passes. Added `ruff>=0.8.0` to dev extra so CI can run it.
+    - Verified frontend: `npx tsc --noEmit` and `npm run build` both pass (Deploy gate).
+    - Deploy pipeline (deploy.yml) = backend pytest + frontend npm run build (no ruff) -- now green locally. CI (ci.yml) = ruff check + pytest + tsc --noEmit -- now green locally.
 
   ### In Progress
   - (none)
@@ -56,12 +65,15 @@ persistent_summary:
   - Camera streaming: cv-engine streams annotated JPEG via /cvws/{id} WebSocket to browser. Nginx proxies /cvws/* to cv-engine.
   - Internal auth: cv-engine uses X-Internal-Token: {CV_ENGINE_API_KEY} shared secret. Soft-gated -- if key not set, logs warning and allows (dev mode). Must be set in production.
   - Media storage: Local filesystem in Docker volume poultry_media. Farm-scoped path prefix. Path traversal blocked.
+  - go2rtc: cv-engine registers cameras via `PUT /api/streams?name=..&src=..`; HTTP 400 with "read-only" body = success (in-memory) since config mount is read-only. Re-register only on source change / prior failure (30s backoff) / staleness (GO2RTC_REGISTER_REFRESH_SECONDS=300). No JSON POST fallback.
+  - Ruff: `[tool.ruff.lint.flake8-bugbear].extend-immutable-calls` lists fastapi.Depends + app.auth.deps.require_permission (B008); BLE001/S110 ignored as intentional defensive logging.
 
   ## Next Steps
-  1. Add CV_ENGINE_API_KEY to .env (openssl rand -hex 32) and set it in prod.
-  2. Write tests for media endpoints and farm_id scoping.
-  3. Write frontend tests (Vitest + React Testing Library).
-  4. Implement health scoring (cv-engine does not write to health measurement yet -- health endpoints return empty).
+  1. Push the go2rtc + test + ruff fixes and verify Deploy/CI go green; confirm no more `go2rtc: 400/404` spam in prod logs.
+  2. Add CV_ENGINE_API_KEY to .env (openssl rand -hex 32) and set it in prod.
+  3. Write tests for media endpoints and farm_id scoping.
+  4. Write frontend tests (Vitest + React Testing Library).
+  5. Implement health scoring (cv-engine does not write to health measurement yet -- health endpoints return empty).
 
   ## Critical Context
   - farm_id is UUID FK on users (nullable -- null = super admin), cameras, chickens, alerts, alert_rules.
@@ -96,14 +108,16 @@ persistent_summary:
   - frontend/src/components/ImpersonationBanner.tsx: Yellow banner with Stop button.
   - frontend/src/layout/ResponsiveShell.tsx: Route definitions, offline banner, impersonation banner.
   - cv_engine/server.py: cv-engine FastAPI -- camera sync loop (X-Internal-Token), WS frame streaming, MJPEG.
-  - cv_engine/camera_manager.py: Manages subprocess per camera.
+  - cv_engine/camera_manager.py: Per-camera subprocess manager + go2rtc stream registration (`_ensure_go2rtc_streams`, `_go2rtc_target`, 400-as-success).
   - cv_engine/camera_worker.py: Per-camera subprocess -- FFmpeg + YOLOv8 + frame_store + detection_queue.
   - cv_engine/stream_manager.py: RtspCameraStream -- FFmpeg subprocess, JPEG frame extraction.
   - cv_engine/influx_writer.py: InfluxWriter thread -- drains detection_queue to InfluxDB.
-  - cv_engine/config.py: CV engine settings incl. CV_ENGINE_API_KEY.
+  - cv_engine/config.py: CV engine settings incl. CV_ENGINE_API_KEY, GO2RTC_REGISTER_REFRESH_SECONDS.
+  - backend/pyproject.toml: [tool.ruff] config (py311, B008 extend-immutable-calls, BLE001/S110 ignore); dev extra includes ruff>=0.8.0.
   - docker-compose.yml: All services. cv-engine and backend now receive CV_ENGINE_API_KEY.
   - docker-compose.prod.yml: Prod overrides -- ports closed, DEBUG=false, API key wired.
   - .env.example: CV_ENGINE_API_KEY documented.
   - Dockerfile: Multi-stage -- frontend (nginx) + backend (uvicorn). cv-engine has its own dockerfile.
-  - .github/workflows/deploy.yml: CI test + build + SSH deploy with rollback.
+  - .github/workflows/deploy.yml: CI test + build + SSH deploy with rollback (no ruff step).
+  - .github/workflows/ci.yml: ruff check + pytest + frontend tsc --noEmit.
 persistent_summary_offset: 0

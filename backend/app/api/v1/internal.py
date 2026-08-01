@@ -1,15 +1,15 @@
 """Internal API endpoints for service-to-service communication (cv-engine)."""
 import logging
+
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.cameras.models import Camera
-from app.database import get_db
-from app.alerts.models import Alert
-from app.alerts.service import create_alert
 from app.alerts.schemas import AlertCreate
+from app.alerts.service import create_alert
+from app.cameras.models import Camera
 from app.config import settings
+from app.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,7 @@ async def fix_camera_channels_internal(
     db: AsyncSession = Depends(get_db),
 ):
     from sqlalchemy import delete
+
     from app.farms.models import Farm
 
     farm_res = await db.execute(select(Farm).limit(1))
@@ -83,7 +84,7 @@ async def reset_cameras_internal(
     db: AsyncSession = Depends(get_db),
 ):
     from sqlalchemy import delete
-    result = await db.execute(delete(Camera))
+    await db.execute(delete(Camera))
     await db.commit()
     return {"status": "ok", "message": "All camera records deleted successfully"}
 
@@ -169,8 +170,8 @@ async def _broadcast_camera_status(db: AsyncSession, running_ids: list[str], sto
 
     by_farm: dict[str, list[dict]] = {}
     global_updates: list[dict] = []
-    for sid, (status, farm_id) in status_by_id.items():
-        entry = {"camera_id": sid, "status": status, "farm_id": farm_id}
+    for sid, (cam_status, farm_id) in status_by_id.items():
+        entry = {"camera_id": sid, "status": cam_status, "farm_id": farm_id}
         global_updates.append(entry)
         if farm_id:
             by_farm.setdefault(farm_id, []).append(entry)

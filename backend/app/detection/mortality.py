@@ -1,5 +1,6 @@
-import numpy as np
 import logging
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ class MortalityGrid:
         cell_dets = {}
 
         for det in detections:
-            x1, y1, x2, y2, conf = det
+            x1, y1, x2, y2, _conf = det
             cx = (x1 + x2) / 2
             cy = (y1 + y2) / 2
 
@@ -97,11 +98,10 @@ class MortalityGrid:
                                 self.centroid_history[(r, c)].pop(0)
                 else:
                     self.debounce_counts[r, c] += 1
-                    if self.debounce_counts[r, c] >= self.debounce_frames:
-                        if curr_state == self.ACTIVE:
-                            self.states[r, c] = self.SUSPECT_STATIC
-                            self.static_start[r, c] = timestamp
-                            changes.append(((r, c), self.ACTIVE, self.SUSPECT_STATIC))
+                    if self.debounce_counts[r, c] >= self.debounce_frames and curr_state == self.ACTIVE:
+                        self.states[r, c] = self.SUSPECT_STATIC
+                        self.static_start[r, c] = timestamp
+                        changes.append(((r, c), self.ACTIVE, self.SUSPECT_STATIC))
 
         # Check threshold static duration for promotions
         for r in range(self.rows):

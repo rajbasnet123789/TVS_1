@@ -1,10 +1,10 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request
 
+from app.analytics.schemas import CostBreakdown, ProfitLossInput, ProfitLossResult
 from app.auth.deps import get_farm_id, require_permission
 from app.auth.models import User
-from app.analytics.schemas import ProfitLossInput, ProfitLossResult, CostBreakdown
 from app.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
@@ -14,8 +14,8 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 async def _fetch_health_context(farm_id: str | None = None) -> tuple[float | None, int | None]:
     try:
-        from app.health.queries import query_health_summary
         from app.detection.queries import query_detected_chickens
+        from app.health.queries import query_health_summary
 
         health = await query_health_summary(start="-7d", end="now()", farm_id=farm_id)
         active = await query_detected_chickens(start="-5m", end="now()", farm_id=farm_id)

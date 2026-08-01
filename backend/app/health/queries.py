@@ -1,8 +1,10 @@
 import logging
-from datetime import datetime, timezone
 
 from app.config import settings
-from app.detection.queries import validate_camera_id, validate_time_param, validate_window
+from app.detection.queries import (
+    validate_camera_id,
+    validate_time_param,
+)
 
 
 def validate_farm_id(farm_id: str) -> str:

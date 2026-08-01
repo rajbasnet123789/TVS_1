@@ -4,9 +4,9 @@ Revision ID: 001_mcmt
 Revises: 
 Create Date: 2026-06-13
 """
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision = "001_mcmt"
 down_revision = None

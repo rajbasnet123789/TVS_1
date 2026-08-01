@@ -1,13 +1,23 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sqlalchemy import select
-
 from app.alerts.models import Alert, AlertRule
-from app.alerts.schemas import AlertAcknowledge, AlertCreate, AlertOut, AlertRuleOut, AlertRuleUpdate
-from app.alerts.service import acknowledge_alert, create_alert, get_alerts, get_unacknowledged_count
+from app.alerts.schemas import (
+    AlertAcknowledge,
+    AlertCreate,
+    AlertOut,
+    AlertRuleOut,
+    AlertRuleUpdate,
+)
+from app.alerts.service import (
+    acknowledge_alert,
+    create_alert,
+    get_alerts,
+    get_unacknowledged_count,
+)
 from app.auth.deps import get_current_user, get_farm_id, require_permission
 from app.auth.models import User
 from app.database import get_db

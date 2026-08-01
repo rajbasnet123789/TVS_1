@@ -78,7 +78,6 @@ async def discover_xmeye_devices(
     Returns a deduplicated list of XMEyeDevice objects.
     """
     loop = asyncio.get_event_loop()
-    results: dict[str, XMEyeDevice] = {}  # keyed by IP to deduplicate
 
     def _run_discovery() -> dict[str, XMEyeDevice]:
         devices: dict[str, XMEyeDevice] = {}
@@ -105,7 +104,7 @@ async def discover_xmeye_devices(
                     if dev:
                         devices[ip] = dev
                         logger.info("XMEye discovered: %s (%s) at %s", dev.device_name, dev.device_type, ip)
-                except socket.timeout:
+                except TimeoutError:
                     break
                 except Exception as exc:
                     logger.debug("XMEye discovery recv error: %s", exc)

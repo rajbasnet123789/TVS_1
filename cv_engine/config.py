@@ -15,6 +15,12 @@ class Settings:
     CV_ENGINE_API_KEY: str = os.getenv("CV_ENGINE_API_KEY", "")
     GO2RTC_API_URL: str = os.getenv("GO2RTC_API_URL", "http://localhost:1984")
     GO2RTC_RTSP_URL: str = os.getenv("GO2RTC_RTSP_URL", "rtsp://localhost:8554")
+    # How often cv-engine re-ensures camera streams are registered in go2rtc
+    # (seconds). go2rtc streams are in-memory (the config is mounted read-only),
+    # so re-registering periodically heals feeds after a go2rtc restart. Failed
+    # registrations are retried more aggressively (30s backoff) instead of on
+    # every camera-sync loop.
+    GO2RTC_REGISTER_REFRESH_SECONDS: int = int(os.getenv("GO2RTC_REGISTER_REFRESH_SECONDS", "300"))
     STREAM_CACHE_DIR: str = os.getenv("STREAM_CACHE_DIR", "stream_cache")
     DETECTION_CONFIDENCE: float = float(os.getenv("DETECTION_CONFIDENCE", "0.55"))
     MODEL_PATH: str = os.getenv("MODEL_PATH", "AI_MODEL/best.pt")

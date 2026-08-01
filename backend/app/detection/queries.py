@@ -1,7 +1,6 @@
 import logging
 import re
-import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from influxdb_client import InfluxDBClient
 
@@ -12,10 +11,11 @@ logger = logging.getLogger(__name__)
 _TIME_PATTERN = re.compile(r"^-?\d+[mhdw]$")
 _DATETIME_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}T")
 _WINDOW_PATTERN = re.compile(r"^\d+[mhdw]$")
-_UUID_PATTERN = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
+_UUID_PATTERN = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
 
 
 import threading
+
 
 def validate_camera_id(camera_id: str) -> str:
     if not _UUID_PATTERN.match(camera_id):
@@ -104,7 +104,7 @@ def _query_headcount_snapshot(client: InfluxDBClient, camera_id: str | None, sta
     for table in client.query_api().query(query):
         for record in table.records:
             result.append({
-                "time": end.replace("now()", datetime.utcnow().isoformat() + "Z") if end == "now()" else end,
+                "time": end.replace("now()", datetime.now(UTC).isoformat() + "Z") if end == "now()" else end,
                 "value": record.get_value() or 0,
             })
     return result
@@ -287,7 +287,7 @@ def query_detected_chickens(
                 }})
             )
     '''
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     five_min_ago = now - timedelta(minutes=5)
 
     results: list[dict] = []
@@ -307,8 +307,8 @@ def query_detected_chickens(
             except (ValueError, TypeError):
                 continue
 
-            first_seen = datetime.fromtimestamp(first_ns / 1e9, tz=timezone.utc) if first_ns else now
-            last_seen = datetime.fromtimestamp(last_ns / 1e9, tz=timezone.utc) if last_ns else now
+            first_seen = datetime.fromtimestamp(first_ns / 1e9, tz=UTC) if first_ns else now
+            last_seen = datetime.fromtimestamp(last_ns / 1e9, tz=UTC) if last_ns else now
 
             results.append({
                 "track_id": tid_int,

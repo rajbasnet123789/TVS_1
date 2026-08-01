@@ -1,6 +1,8 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 from fastapi import WebSocket
+
 from app.websocket.manager import ConnectionManager
 
 

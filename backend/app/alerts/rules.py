@@ -1,16 +1,14 @@
 import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.alerts.models import AlertRule
 from app.alerts.schemas import AlertCreate
 from app.alerts.service import create_alert
 from app.config import settings
 from app.database import async_session
-from app.websocket.manager import manager
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +60,7 @@ async def _check_inactivity(rule: AlertRule):
         query = f'''
             from(bucket: "{settings.influx_bucket}")
                 |> range(start: -{duration_minutes}m, stop: now())
-                |> filter(fn: (r) => r["farm_id"] == "{str(rule.farm_id)}")
+                |> filter(fn: (r) => r["farm_id"] == "{rule.farm_id!s}")
                 |> filter(fn: (r) => r["track_id"] != "-1" and r["track_id"] != "None")
                 |> group(columns: ["track_id"])
                 |> last()
@@ -81,8 +79,8 @@ async def _check_inactivity(rule: AlertRule):
 
         if len(active_tracks) == 0:
             async with async_session() as db:
-                from app.cameras.models import Camera
                 from app.alerts.models import Alert
+                from app.cameras.models import Camera
                 cam_result = await db.execute(select(Camera).where(Camera.enabled == True, Camera.farm_id == rule.farm_id))
                 cameras = cam_result.scalars().all()
                 for cam in cameras:
@@ -186,7 +184,7 @@ async def _check_health_drop(rule: AlertRule):
         past_mean_query = f'''
             from(bucket: "{settings.influx_bucket}")
                 |> range(start: -{lookback}m, stop: -5m)
-                |> filter(fn: (r) => r["farm_id"] == "{str(rule.farm_id)}")
+                |> filter(fn: (r) => r["farm_id"] == "{rule.farm_id!s}")
                 |> filter(fn: (r) => r["_measurement"] == "health")
                 |> filter(fn: (r) => r["_field"] == "health_score")
                 |> group(columns: ["track_id"])
@@ -239,7 +237,7 @@ async def _check_missing_chicken(rule: AlertRule):
         query = f'''
             from(bucket: "{settings.influx_bucket}")
                 |> range(start: -{duration_minutes}m, stop: now())
-                |> filter(fn: (r) => r["farm_id"] == "{str(rule.farm_id)}")
+                |> filter(fn: (r) => r["farm_id"] == "{rule.farm_id!s}")
                 |> filter(fn: (r) => r["_measurement"] == "detections")
                 |> group(columns: ["track_id"])
                 |> last()
@@ -249,14 +247,14 @@ async def _check_missing_chicken(rule: AlertRule):
         }
         loop = asyncio.get_running_loop()
         tables = await loop.run_in_executor(None, lambda: client.query_api().query(query, params=params))
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for table in tables:
             for record in table.records:
                 tid = record.values.get("track_id")
                 if tid and tid not in ("-1", "None"):
                     last_seen = record.get_time()
                     if last_seen:
-                        minutes_ago = (now - last_seen.replace(tzinfo=timezone.utc)).total_seconds() / 60
+                        minutes_ago = (now - last_seen.replace(tzinfo=UTC)).total_seconds() / 60
                         if minutes_ago >= rule.duration_minutes:
                             async with async_session() as db:
                                 from app.alerts.models import Alert
@@ -285,8 +283,8 @@ async def _check_camera_offline(rule: AlertRule):
     # Note: Camera offline status is also tracked and broadcast by the Frigate subscriber.
     # This rule-based check acts as a fallback/periodic sync to ensure unacknowledged offline
     # alerts exist in the DB for any camera that is currently offline.
-    from app.cameras.models import Camera
     from app.alerts.models import Alert
+    from app.cameras.models import Camera
     async with async_session() as db:
         result = await db.execute(
             select(Camera).where(Camera.status != "online", Camera.enabled, Camera.farm_id == rule.farm_id)

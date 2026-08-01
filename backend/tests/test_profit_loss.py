@@ -1,8 +1,7 @@
+
 import pytest
-import uuid
-from unittest.mock import AsyncMock
+
 from app.auth.service import seed_roles, seed_super_admin
-from app.config import settings
 
 
 @pytest.fixture
@@ -11,9 +10,10 @@ async def auth_headers(db_session):
     await seed_super_admin(db_session)
     await db_session.commit()
 
-    from app.auth.service import create_access_token
     from sqlalchemy import select
+
     from app.auth.models import User
+    from app.auth.service import create_access_token
 
     res = await db_session.execute(select(User).where(User.email == "admin@poultry.farm"))
     user = res.scalar_one()

@@ -1,7 +1,8 @@
 import pytest
-from app.auth.service import seed_roles, seed_super_admin, hash_password
 from sqlalchemy import select
-from app.auth.models import User, Role
+
+from app.auth.models import User
+from app.auth.service import seed_roles, seed_super_admin
 
 
 @pytest.mark.asyncio
@@ -112,8 +113,9 @@ async def test_google_login_not_configured(client):
 @pytest.mark.asyncio
 async def test_google_login_success(client, db_session, monkeypatch):
     import httpx
-    from app.config import settings
+
     from app.auth.service import seed_roles, seed_super_admin
+    from app.config import settings
     
     monkeypatch.setattr(settings, "google_client_id", "test-google-client-id")
     await seed_roles(db_session)
@@ -150,8 +152,9 @@ async def test_google_login_success(client, db_session, monkeypatch):
 @pytest.mark.asyncio
 async def test_google_login_failures(client, db_session, monkeypatch):
     import httpx
-    from app.config import settings
+
     from app.auth.service import seed_roles, seed_super_admin
+    from app.config import settings
     
     monkeypatch.setattr(settings, "google_client_id", "test-google-client-id")
     await seed_roles(db_session)

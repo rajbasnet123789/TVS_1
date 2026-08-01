@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -53,7 +53,7 @@ async def create_alert(db: AsyncSession, data: AlertCreate, farm_id: str | None 
             "severity": alert.severity,
             "message": alert.message,
             "farm_id": str(alert.farm_id) if alert.farm_id else None,
-            "timestamp": alert.created_at.isoformat() if alert.created_at else datetime.now(timezone.utc).isoformat(),
+            "timestamp": alert.created_at.isoformat() if alert.created_at else datetime.now(UTC).isoformat(),
         }
         await manager.broadcast("alerts", event)
         if alert.farm_id:
@@ -75,7 +75,7 @@ async def get_alerts(db: AsyncSession, limit: int = 50, offset: int = 0, farm_id
 async def acknowledge_alert(db: AsyncSession, alert: Alert, farm_id: str | None = None) -> Alert | None:
     if farm_id and (alert.farm_id is None or str(alert.farm_id) != farm_id):
         return None
-    alert.acknowledged_at = datetime.now(timezone.utc)
+    alert.acknowledged_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(alert)
     return alert

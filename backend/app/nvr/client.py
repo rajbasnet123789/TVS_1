@@ -1,6 +1,5 @@
 import logging
 from datetime import datetime
-from urllib.parse import urlencode, urlparse, parse_qs
 
 import httpx
 

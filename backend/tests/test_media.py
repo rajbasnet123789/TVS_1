@@ -1,7 +1,6 @@
-import pytest
-import tempfile
-import os
 from pathlib import Path
+
+import pytest
 
 
 @pytest.fixture(autouse=True)
@@ -12,7 +11,7 @@ def _patch_settings(monkeypatch, tmp_path: Path):
 
 @pytest.mark.asyncio
 async def test_put_and_get_object():
-    from app.media.client import put_object, get_object
+    from app.media.client import get_object, put_object
     data = b"hello-world-image-data"
     key = await put_object("farm-1", "snapshots/cam1/test.jpg", data, "image/jpeg")
     assert key == "snapshots/cam1/test.jpg"
@@ -30,7 +29,7 @@ async def test_get_object_not_found():
 
 @pytest.mark.asyncio
 async def test_delete_object():
-    from app.media.client import put_object, delete_object, get_object
+    from app.media.client import delete_object, get_object, put_object
     await put_object("farm-2", "test/delete_me.txt", b"delete-me")
     assert await get_object("farm-2", "test/delete_me.txt") == b"delete-me"
 
@@ -48,7 +47,7 @@ async def test_delete_object_not_found():
 
 @pytest.mark.asyncio
 async def test_list_objects():
-    from app.media.client import put_object, list_objects
+    from app.media.client import list_objects, put_object
     await put_object("farm-3", "a/1.txt", b"a1")
     await put_object("farm-3", "a/2.txt", b"a2")
     await put_object("farm-3", "b/3.txt", b"b3")
@@ -59,7 +58,7 @@ async def test_list_objects():
 
 @pytest.mark.asyncio
 async def test_list_objects_with_prefix():
-    from app.media.client import put_object, list_objects
+    from app.media.client import list_objects, put_object
     await put_object("farm-4", "snapshots/cam1/a.jpg", b"a")
     await put_object("farm-4", "snapshots/cam2/b.jpg", b"b")
     await put_object("farm-4", "other/c.txt", b"c")
@@ -70,7 +69,7 @@ async def test_list_objects_with_prefix():
 
 @pytest.mark.asyncio
 async def test_farm_isolation():
-    from app.media.client import put_object, get_object
+    from app.media.client import get_object, put_object
     await put_object("farm-a", "shared.txt", b"farm-a-data")
     await put_object("farm-b", "shared.txt", b"farm-b-data")
 

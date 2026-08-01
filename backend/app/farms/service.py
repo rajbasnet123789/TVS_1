@@ -1,4 +1,5 @@
-import uuid
+
+import re
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,8 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.farms.models import Farm
 from app.farms.schemas import FarmCreate, FarmUpdate
 
-
-import re
 
 async def generate_unique_slug(db: AsyncSession, name: str, base_slug: str | None = None) -> str:
     if base_slug:
@@ -79,10 +78,11 @@ async def delete_farm(db: AsyncSession, farm_id: str) -> bool:
     if not farm:
         return False
 
+    from sqlalchemy import func
+
     from app.auth.models import User
     from app.cameras.models import Camera
     from app.chickens.models import Chicken
-    from sqlalchemy import func
 
     has_users = (await db.execute(select(func.count(User.id)).where(User.farm_id == farm_id))).scalar_one() > 0
     has_cameras = (await db.execute(select(func.count(Camera.id)).where(Camera.farm_id == farm_id))).scalar_one() > 0

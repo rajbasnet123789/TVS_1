@@ -1,15 +1,15 @@
+import uuid
+from datetime import UTC, datetime, timedelta
+
 import pytest
 import pytest_asyncio
-import uuid
-from datetime import datetime, timezone, timedelta
 from sqlalchemy import select
-from httpx import ASGITransport, AsyncClient
 
-import app.health.queries
 import app.alerts.rules
+import app.health.queries
+from app.alerts.models import Alert, AlertRule
 from app.auth.models import Role, User
 from app.auth.service import create_access_token
-from app.alerts.models import Alert, AlertRule
 from app.cameras.models import Camera
 
 
@@ -117,6 +117,7 @@ async def test_get_unacknowledged_count(db_session):
     # Add an unacknowledged alert
     alert1 = Alert(
         id=uuid.uuid4(),
+        farm_id=uuid.UUID('00000000-0000-0000-0000-000000000001'),
         type="test_type",
         severity=1,
         message="Test alert 1",
@@ -130,10 +131,11 @@ async def test_get_unacknowledged_count(db_session):
     # Add an acknowledged alert
     alert2 = Alert(
         id=uuid.uuid4(),
+        farm_id=uuid.UUID('00000000-0000-0000-0000-000000000001'),
         type="test_type",
         severity=2,
         message="Test alert 2",
-        acknowledged_at=datetime.now(timezone.utc),
+        acknowledged_at=datetime.now(UTC),
     )
     db_session.add(alert2)
     await db_session.commit()
@@ -144,7 +146,7 @@ async def test_get_unacknowledged_count(db_session):
 
 @pytest.mark.asyncio
 async def test_health_scores_endpoint(client, auth_headers, mock_influx):
-    time_now = datetime.now(timezone.utc)
+    time_now = datetime.now(UTC)
     cam_id = str(uuid.uuid4())
     mock_record = MockRecord(
         time_val=time_now,
@@ -291,7 +293,7 @@ async def test_alert_rules_deduplication_health_critical(db_session, mock_influx
     track_id = "42"
 
     record = MockRecord(
-        time_val=datetime.now(timezone.utc),
+        time_val=datetime.now(UTC),
         values_dict={"camera_id": cam_id, "track_id": track_id},
         val=25.0
     )
@@ -364,7 +366,7 @@ async def test_alert_rules_deduplication_missing_chicken(db_session, mock_influx
     monkeypatch.setattr(app.alerts.rules, "async_session", lambda: MockSessionContext(db_session))
 
     track_id = "99"
-    last_seen_time = datetime.now(timezone.utc) - timedelta(minutes=40)
+    last_seen_time = datetime.now(UTC) - timedelta(minutes=40)
     record = MockRecord(
         time_val=last_seen_time,
         values_dict={"track_id": track_id},

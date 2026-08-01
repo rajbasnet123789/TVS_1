@@ -1,16 +1,15 @@
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.deps import require_permission, get_farm_id
+from app.auth.deps import get_farm_id, require_permission
 from app.auth.models import User
 from app.cameras.models import Camera
 from app.database import get_db
-from app.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -70,12 +69,11 @@ async def connect_nvr(
     username = data.username or "admin"
     password = data.password or ""
     protocol = data.protocol or "General"
-    auth_str = f"{username}:{password}@" if username else ""
 
     channels: list[DiscoveredChannel] = []
 
     # DVRIP TCP login to TVS NVR (SofiaHash auth, cmd=1000)
-    from app.xmeye.client import dvrip_login, DVRIPAuthError, build_all_rtsp_urls
+    from app.xmeye.client import dvrip_login
     try:
         resp = await dvrip_login(ip=ip, port=port, username=username, password=password)
         ch_num = int(resp.get("ChannelNum") or resp.get("ExtraChannel") or 16)
@@ -250,4 +248,4 @@ async def get_time(
                 return {"nvr_time": nvr_time}
         except Exception as e:
             logger.warning("Failed to get NVR time: %s", e)
-    return {"nvr_time": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")}
+    return {"nvr_time": datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")}

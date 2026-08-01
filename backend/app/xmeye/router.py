@@ -19,11 +19,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import get_farm_id, require_permission
 from app.auth.models import User
-from app.cameras.models import Camera
-from app.cameras.schemas import CameraOut
+from app.cameras.schemas import CameraCreate, CameraOut
 from app.cameras.service import create_camera
-from app.cameras.schemas import CameraCreate
-from app.config import settings
 from app.database import get_db
 from app.xmeye.client import (
     DVRIPAuthError,

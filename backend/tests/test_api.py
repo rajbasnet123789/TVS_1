@@ -1,6 +1,8 @@
-import pytest
 import uuid
+
+import pytest
 from sqlalchemy import select
+
 from app.cameras.models import Camera
 from app.cameras.schemas import CameraUpdate
 from app.cameras.service import update_camera

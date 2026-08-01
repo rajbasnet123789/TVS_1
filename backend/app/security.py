@@ -2,8 +2,8 @@ import base64
 import logging
 
 from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from app.config import settings
 
@@ -38,6 +38,6 @@ def decrypt_camera_password(ciphertext: str) -> str:
         return ""
     try:
         return _get_fernet().decrypt(ciphertext.encode()).decode()
-    except Exception as e:
+    except Exception:
         logger.exception("Failed to decrypt camera password")
-        raise e
+        raise

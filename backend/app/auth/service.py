@@ -1,7 +1,5 @@
 import logging
-import secrets
-import string
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import redis.asyncio as aioredis
 from jose import ExpiredSignatureError, JWTError, jwt
@@ -11,8 +9,8 @@ from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.auth.models import Role, User
+from app.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -35,15 +33,15 @@ def create_access_token(
     expires_delta: timedelta | None = None,
 ) -> str:
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
+        expire = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
     payload = {"sub": user_id, "role": role_name, "farm_id": farm_id, "exp": expire, "type": "access"}
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
 def create_refresh_token(user_id: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
+    expire = datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days)
     payload = {"sub": user_id, "exp": expire, "type": "refresh"}
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
@@ -55,9 +53,8 @@ def decode_token(token: str) -> dict | None:
         return None
 
 
-from typing import Optional
 
-redis_client: Optional[aioredis.Redis] = None
+redis_client: aioredis.Redis | None = None
 
 
 def get_redis() -> aioredis.Redis:
@@ -166,8 +163,9 @@ async def seed_roles(db: AsyncSession):
 
 
 async def seed_default_farm(db: AsyncSession):
-    from app.farms.models import Farm
     import uuid
+
+    from app.farms.models import Farm
     result = await db.execute(select(Farm).where(Farm.slug == "default"))
     farm = result.scalar_one_or_none()
     if not farm:
@@ -207,8 +205,8 @@ async def seed_super_admin(db: AsyncSession):
             must_change_password=True,
         )
         db.add(user)
-        logger.info(f"Default super_admin created (admin@poultry.farm) with configured password")
+        logger.info("Default super_admin created (admin@poultry.farm) with configured password")
     elif not user.hashed_password:
         user.hashed_password = hash_password(admin_password)
         db.add(user)
-        logger.info(f"Default super_admin (admin@poultry.farm) password set during initial setup")
+        logger.info("Default super_admin (admin@poultry.farm) password set during initial setup")

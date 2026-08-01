@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Load workspace root .env file
@@ -20,18 +21,19 @@ os.environ.setdefault("MQTT_BROKER", "localhost")
 os.environ.setdefault("MQTT_PORT", "1883")
 os.environ.setdefault("ENCRYPTION_KEY", "dummy_encryption_key_value_for_testing_purposes")
 
+
 import pytest
 import pytest_asyncio
-import asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from app.config import settings
-from app.database import Base, get_db
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+import app.alerts.models
 import app.auth.models
 import app.cameras.models
 import app.chickens.models
-import app.alerts.models
 import app.farms.models
+from app.config import settings
+from app.database import Base, get_db
 
 try:
     from app.main import app
@@ -92,13 +94,15 @@ async def db_session():
         # First transaction to clean up any dirty database state
         clean_trans = await connection.begin()
         session = AsyncSession(bind=connection, expire_on_commit=False)
+        import uuid
+
         from sqlalchemy import delete
+
         from app.alerts.models import Alert, AlertRule
+        from app.auth.models import Role, User
         from app.cameras.models import Camera
         from app.chickens.models import Chicken
-        from app.auth.models import User, Role
         from app.farms.models import Farm
-        import uuid
 
         await session.execute(delete(Alert))
         await session.execute(delete(AlertRule))

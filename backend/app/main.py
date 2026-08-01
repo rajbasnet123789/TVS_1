@@ -12,18 +12,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
+import app.alerts.models
+import app.auth.models
+import app.cameras.models
+import app.chickens.models
+import app.farms.models
 from app.api.v1.router import router as api_v1_router
 from app.api.v1.router import websocket_router
+from app.auth.service import seed_default_farm, seed_roles, seed_super_admin
 from app.config import settings
 from app.database import init_db
-from app.auth.service import seed_default_farm, seed_roles, seed_super_admin
 from app.rate_limit import limiter
-
-import app.auth.models
-import app.farms.models
-import app.chickens.models
-import app.cameras.models
-import app.alerts.models
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
 
@@ -60,8 +59,7 @@ def assert_single_worker():
             )
     args = sys.argv
     for i, arg in enumerate(args):
-        if arg in ("--workers", "-w"):
-            if i + 1 < len(args) and args[i + 1].isdigit() and int(args[i + 1]) > 1:
+        if arg in ("--workers", "-w") and i + 1 < len(args) and args[i + 1].isdigit() and int(args[i + 1]) > 1:
                 raise AssertionError(
                     f"Multiple workers detected via command line argument '{arg} {args[i+1]}'. "
                     "This application requires exactly one worker due to process-local state."
@@ -73,8 +71,7 @@ def assert_single_worker():
         if parent:
             parent_cmdline = parent.cmdline()
             for i, arg in enumerate(parent_cmdline):
-                if arg in ("--workers", "-w"):
-                    if i + 1 < len(parent_cmdline) and parent_cmdline[i + 1].isdigit() and int(parent_cmdline[i + 1]) > 1:
+                if arg in ("--workers", "-w") and i + 1 < len(parent_cmdline) and parent_cmdline[i + 1].isdigit() and int(parent_cmdline[i + 1]) > 1:
                         raise AssertionError(
                             "Multiple workers detected in parent process command line. "
                             "This application requires exactly one worker due to process-local state."

@@ -2,11 +2,13 @@ from fastapi import APIRouter
 
 from app.alerts.router import router as alerts_router
 from app.analytics.router import router as analytics_router
+from app.api.v1.internal import router as internal_router
 from app.auth.router import router as auth_router
 from app.cameras.router import router as cameras_router
-from app.coops.router import router as coops_router
 from app.chickens.router import router as chickens_router
-from app.detection.router import router as detection_router, global_router as detection_global_router
+from app.coops.router import router as coops_router
+from app.detection.router import global_router as detection_global_router
+from app.detection.router import router as detection_router
 from app.environment.router import router as environment_router
 from app.farms.router import router as farms_router
 from app.health.router import router as health_router
@@ -14,7 +16,6 @@ from app.media.router import router as media_router
 from app.nvr.router import router as nvr_router
 from app.websocket.router import router as ws_router
 from app.xmeye.router import router as xmeye_router
-from app.api.v1.internal import router as internal_router
 
 router = APIRouter(prefix="/v1")
 router.include_router(alerts_router)

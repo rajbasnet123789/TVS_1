@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cameras.models import Camera
 from app.cameras.schemas import CameraCreate, CameraUpdate
-from app.security import decrypt_camera_password, encrypt_camera_password
+from app.security import encrypt_camera_password
 
 logger = logging.getLogger(__name__)
 

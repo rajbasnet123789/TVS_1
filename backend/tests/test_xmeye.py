@@ -3,18 +3,16 @@ Unit tests for XMEye / DVRIP module.
 Tests that don't require network access or a real device.
 """
 import struct
-import pytest
 
 from app.xmeye.client import (
-    sofia_hash,
-    build_xmeye_rtsp_url,
-    build_all_rtsp_urls,
+    _HEADER_SIZE,
     _build_packet,
     _parse_response,
-    _HEADER_SIZE,
+    build_all_rtsp_urls,
+    build_xmeye_rtsp_url,
+    sofia_hash,
 )
-from app.xmeye.discovery import _parse_discovery_response, _find_json_end
-
+from app.xmeye.discovery import _find_json_end, _parse_discovery_response
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Sofia hash tests

@@ -4,9 +4,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.deps import get_current_user, require_permission
 from app.auth.models import User
 from app.database import get_db
-from app.farms.models import Farm
 from app.farms.schemas import FarmCreate, FarmOut, FarmUpdate
-from app.farms.service import create_farm, delete_farm, get_farm, list_farms, update_farm
+from app.farms.service import (
+    create_farm,
+    delete_farm,
+    get_farm,
+    list_farms,
+    update_farm,
+)
 from app.rate_limit import limiter
 
 router = APIRouter(prefix="/farms", tags=["farms"])
@@ -31,9 +36,8 @@ async def get_farm_detail(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if user.role.name != "super_admin":
-        if user.farm_id is None or str(user.farm_id) != farm_id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    if user.role.name != "super_admin" and (user.farm_id is None or str(user.farm_id) != farm_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     farm = await get_farm(db, farm_id)
     if not farm:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Farm not found")
@@ -62,9 +66,8 @@ async def edit_farm(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_permission("system:audit")),
 ):
-    if user.role.name != "super_admin":
-        if user.farm_id is None or str(user.farm_id) != farm_id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    if user.role.name != "super_admin" and (user.farm_id is None or str(user.farm_id) != farm_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     farm = await update_farm(db, farm_id, data)
     if not farm:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Farm not found")

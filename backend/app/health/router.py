@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.auth.deps import get_farm_id, require_permission
 from app.auth.models import User
 from app.health.queries import query_health_scores, query_health_summary
-from app.health.schemas import HealthRecord, HealthSummary, TimeSeriesPoint
+from app.health.schemas import HealthRecord, HealthSummary
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ async def list_health_scores(
     except ValueError as e:
         logger.warning(f"Invalid health parameter: {e}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except Exception as e:
+    except Exception:
         logger.exception("Health scores query failed")
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Health query database/API connection failed")
 
@@ -56,6 +56,6 @@ async def health_summary(
     except ValueError as e:
         logger.warning(f"Invalid health summary parameter: {e}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except Exception as e:
+    except Exception:
         logger.exception("Health summary query failed")
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Health summary database/API connection failed")

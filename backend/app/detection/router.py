@@ -12,8 +12,13 @@ from app.auth.deps import get_farm_id, require_permission
 from app.auth.models import User
 from app.cameras.models import Camera
 from app.database import get_db
-from app.detection.schemas import DetectionHistory, DetectionStats, DetectionSummary, TimeSeriesPoint
 from app.detection.queries import query_detection_history, query_detection_summary
+from app.detection.schemas import (
+    DetectionHistory,
+    DetectionStats,
+    DetectionSummary,
+    TimeSeriesPoint,
+)
 from app.rate_limit import limiter
 
 router = APIRouter(prefix="/cameras/{camera_id}/detection", tags=["detection"])
@@ -97,7 +102,7 @@ async def detection_stats(
     if farm_id and str(camera.farm_id) != farm_id and user.role.name != "super_admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     try:
-        from app.detection.queries import validate_camera_id, query_detection_stats
+        from app.detection.queries import query_detection_stats, validate_camera_id
         validate_camera_id(camera_id)
         stats = await asyncio.to_thread(query_detection_stats, camera_id)
         return DetectionStats(
@@ -107,7 +112,7 @@ async def detection_stats(
             active_cameras=1 if camera.enabled else 0,
         )
     except Exception:
-        logger.error(f"Stats query failed for camera {camera_id}", exc_info=True)
+        logger.exception(f"Stats query failed for camera {camera_id}")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Failed to retrieve detection stats",
