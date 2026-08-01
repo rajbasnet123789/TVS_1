@@ -33,11 +33,13 @@ class Settings:
     COUNTS_PUSH_INTERVAL_SECONDS: float = float(os.getenv("COUNTS_PUSH_INTERVAL_SECONDS", "1"))
     # Live count is the number of UNIQUE track IDs seen in the last N seconds
     # (per camera). This smooths out per-frame YOLO jitter (occlusion, missed
-    # frames, confidence flicker) instead of reporting a raw box count.
-    LIVE_COUNT_WINDOW_SECONDS: int = int(os.getenv("LIVE_COUNT_WINDOW_SECONDS", "20"))
+    # frames, confidence flicker) instead of reporting a raw box count. A longer
+    # window keeps the count stable while birds are merely occluded/stationary.
+    LIVE_COUNT_WINDOW_SECONDS: int = int(os.getenv("LIVE_COUNT_WINDOW_SECONDS", "60"))
     # If a camera stops producing count events for this long, report its count
-    # as 0 so offline/stalled cameras don't show stale numbers forever.
-    LIVE_COUNT_TTL_SECONDS: int = int(os.getenv("LIVE_COUNT_TTL_SECONDS", "30"))
+    # as 0 so offline/stalled cameras don't show stale numbers forever. Must be
+    # >= LIVE_COUNT_WINDOW_SECONDS so the window never outlives the TTL.
+    LIVE_COUNT_TTL_SECONDS: int = int(os.getenv("LIVE_COUNT_TTL_SECONDS", "90"))
     # Output frame rate of the ffmpeg MJPEG capture loop. Frames are consumed
     # by the inference loop (throttled by INFERENCE_MIN_INTERVAL_MS), so a low
     # rate avoids wasted decode + copy work. No other consumer reads frames.

@@ -15,7 +15,7 @@ let consumerCount = 0
 
 const listeners = new Set<() => void>()
 
-const STALE_MS = 30000
+const STALE_MS = 90000
 
 function updateGlobalState(newCounts: Map<string, number>, newLoading: boolean) {
   globalCounts = newCounts
