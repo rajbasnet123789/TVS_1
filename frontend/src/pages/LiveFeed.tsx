@@ -21,13 +21,18 @@ interface NvrChannel {
 }
 
 export default function LiveFeed() {
-  const { cameras, addCamera, refetchCameras, scanNetwork, getScanStatus, getScanResults } = useCameras()
+  const { cameras, addCamera, deleteCamera, refetchCameras, scanNetwork, getScanStatus, getScanResults } = useCameras()
   const { hasPermission, farms } = useAuth()
   const [open, setOpen] = useState(false)
   const [addDeviceModalOpen, setAddDeviceModalOpen] = useState(false)
   const [form, setForm] = useState({ name: '', rtsp_url: '', location: '', zone: '', fps_target: 5, username: '', password: '' })
   const [addError, setAddError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  // Delete camera state
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   // ONVIF scan state
   const [scanDialogOpen, setScanDialogOpen] = useState(false)
@@ -88,6 +93,18 @@ export default function LiveFeed() {
     } finally { setNvrRegistering(false) }
   }
 
+  const handleDelete = async () => {
+    if (deleting || !deleteTarget) return
+    setDeleting(true)
+    setDeleteError('')
+    try {
+      await deleteCamera(deleteTarget.id)
+      setDeleteTarget(null)
+    } catch (e: any) {
+      setDeleteError(e?.response?.data?.detail || 'Failed to delete camera')
+    } finally { setDeleting(false) }
+  }
+
   const isFirstCamera = cameras.length === 0
 
   return (
@@ -137,7 +154,7 @@ export default function LiveFeed() {
         </Box>
       </Box>
 
-      <CameraGrid compact={false} />
+      <CameraGrid compact={false} onDelete={hasPermission('cameras:delete') ? setDeleteTarget : undefined} />
 
       <AddDeviceModal open={addDeviceModalOpen} onClose={() => setAddDeviceModalOpen(false)} onSuccess={refetchCameras} />
 
@@ -232,6 +249,23 @@ export default function LiveFeed() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => { setScanDialogOpen(false); if (scanPollRef.current) clearInterval(scanPollRef.current) }}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Camera Confirm Dialog */}
+      <Dialog open={!!deleteTarget} onClose={() => { if (!deleting) setDeleteTarget(null) }} maxWidth="xs" fullWidth>
+        <DialogTitle>Delete Camera</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            Permanently delete <strong>{deleteTarget?.name}</strong>? This cannot be undone.
+          </Typography>
+          {deleteError && <Typography variant="body2" color="error" sx={{ mt: 1 }}>{deleteError}</Typography>}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)} disabled={deleting}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={handleDelete} disabled={deleting}>
+            {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
         </DialogActions>
       </Dialog>
 

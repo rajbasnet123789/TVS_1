@@ -1,4 +1,5 @@
-import { Box, Typography, CircularProgress } from '@mui/material'
+import { Box, Typography, CircularProgress, IconButton, Tooltip } from '@mui/material'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
 import VideocamOffOutlinedIcon from '@mui/icons-material/VideocamOffOutlined'
 import { useLiveCounts } from '../hooks/useLiveCounts'
@@ -9,9 +10,10 @@ interface CameraFeedProps {
   status: string
   compact?: boolean
   onClick?: () => void
+  onDelete?: () => void
 }
 
-export function CameraFeed({ id, name, status, compact, onClick }: CameraFeedProps) {
+export function CameraFeed({ id, name, status, compact, onClick, onDelete }: CameraFeedProps) {
   const { counts, loading } = useLiveCounts(3000)
   const liveCount = counts.get(id) ?? 0
   const online = status === 'online'
@@ -57,6 +59,17 @@ export function CameraFeed({ id, name, status, compact, onClick }: CameraFeedPro
           <Typography variant="caption" sx={{ color: online ? '#10b981' : '#94a3b8', fontSize: '0.6rem', fontWeight: 700 }}>
             {online ? 'LIVE' : 'OFFLINE'}
           </Typography>
+          {onDelete && (
+            <Tooltip title="Delete camera">
+              <IconButton
+                size="small"
+                sx={{ ml: 0.5, p: 0.4, color: '#94a3b8', '&:hover': { color: '#ef4444', bgcolor: '#fee2e2' } }}
+                onClick={(e) => { e.stopPropagation(); onDelete() }}
+              >
+                <DeleteOutlineIcon sx={{ fontSize: '0.95rem' }} />
+              </IconButton>
+            </Tooltip>
+          )}
         </Box>
       </Box>
 

@@ -6,7 +6,12 @@ import { useCameras } from '../hooks/useCameras'
 import { CameraFeed } from './CameraFeed'
 import { CameraVideoModal } from './CameraVideoModal'
 
-export function CameraGrid({ compact = true }: { compact?: boolean }) {
+interface CameraGridProps {
+  compact?: boolean
+  onDelete?: (cam: { id: string; name: string }) => void
+}
+
+export function CameraGrid({ compact = true, onDelete }: CameraGridProps) {
   const { cameras, loading } = useCameras()
   const [modalCam, setModalCam] = useState<{ id: string; name: string } | null>(null)
 
@@ -33,6 +38,7 @@ export function CameraGrid({ compact = true }: { compact?: boolean }) {
               status={cam.status}
               compact={compact}
               onClick={() => setModalCam({ id: cam.id, name: cam.name })}
+              onDelete={onDelete ? () => onDelete(cam) : undefined}
             />
           </Grid>
         ))}
