@@ -214,7 +214,14 @@ async def assign_camera_coop(
     if farm_id and str(camera.farm_id) != farm_id and user.role.name != "super_admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
-    camera.coop_id = data.coop_id
+    if not data.coop_id or str(data.coop_id) == "00000000-0000-0000-0000-000000000000":
+        camera.coop_id = None
+    else:
+        try:
+            camera.coop_id = uuid.UUID(str(data.coop_id))
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid coop ID format")
+
     await db.commit()
     await db.refresh(camera)
 

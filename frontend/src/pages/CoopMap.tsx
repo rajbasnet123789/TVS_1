@@ -100,6 +100,16 @@ export default function CoopMap() {
     setAssignOpen(true)
   }
 
+  const handleAssignCamera = async (cameraId: string, targetCoopId: string) => {
+    try {
+      const coop_id = targetCoopId === '00000000-0000-0000-0000-000000000000' ? null : targetCoopId
+      await api.put(`/cameras/${cameraId}/assign-coop`, { coop_id })
+      await loadCoops(true)
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || 'Failed to assign camera')
+    }
+  }
+
   const handleAssign = async () => {
     if (!assignCameraId || !assignCoopId) return
     try {
@@ -163,6 +173,7 @@ export default function CoopMap() {
                 onEdit={handleOpenEdit}
                 onDelete={handleDeleteCoop}
                 onRefresh={loadCoops}
+                onAssignCamera={handleAssignCamera}
               />
             </Grid>
           ))}

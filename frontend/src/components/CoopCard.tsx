@@ -14,19 +14,21 @@ export interface CoopData {
   cameras: Camera[]
 }
 
-interface CoopCardProps {
+export interface CoopCardProps {
   coop: CoopData
   canWrite: boolean
   onCameraClick: (camera: Camera) => void
   onEdit: (coop: CoopData) => void
   onDelete: (coop: CoopData) => void
   onRefresh?: (isSilent?: boolean) => void
+  onAssignCamera?: (cameraId: string, targetCoopId: string) => Promise<void>
 }
 
-export function CoopCard({ coop, canWrite, onCameraClick, onEdit, onDelete, onRefresh }: CoopCardProps) {
+export function CoopCard({ coop, canWrite, onCameraClick, onEdit, onDelete, onRefresh, onAssignCamera }: CoopCardProps) {
   const isUnassigned = coop.id === '00000000-0000-0000-0000-000000000000'
   const onlineCount = coop.cameras.filter((c) => c.status === 'online').length
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({})
+  const [isDragOver, setIsDragOver] = useState(false)
 
   // Interactive perimeter placement state
   const containerRef = useRef<HTMLDivElement>(null)
@@ -183,7 +185,63 @@ export function CoopCard({ coop, canWrite, onCameraClick, onEdit, onDelete, onRe
   }
 
   return (
-    <Card sx={{ border: '1px solid #e2e8f0', boxShadow: 'none', borderRadius: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Card
+      onDragOver={(e) => {
+        if (!canWrite) return
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+        if (!isDragOver) setIsDragOver(true)
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+          setIsDragOver(false)
+        }
+      }}
+      onDrop={async (e) => {
+        e.preventDefault()
+        setIsDragOver(false)
+        if (!canWrite || !onAssignCamera) return
+        const camId = e.dataTransfer.getData('text/plain')
+        if (camId) {
+          await onAssignCamera(camId, coop.id)
+        }
+      }}
+      sx={{
+        border: isDragOver ? '2.5px dashed #10b981' : '1px solid #e2e8f0',
+        bgcolor: isDragOver ? '#f0fdf4' : '#ffffff',
+        boxShadow: isDragOver ? '0 8px 24px rgba(16, 185, 129, 0.2)' : 'none',
+        borderRadius: 3,
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
+        transition: 'all 0.2s ease',
+      }}
+    >
+      {isDragOver && (
+        <Box
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            bgcolor: 'rgba(240, 253, 244, 0.95)',
+            backdropFilter: 'blur(2px)',
+            border: '2.5px dashed #10b981',
+            borderRadius: 3,
+            zIndex: 50,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+            p: 2,
+          }}
+        >
+          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#047857', fontFamily: '"Outfit", sans-serif' }}>
+            Drop to assign to {isUnassigned ? 'Unassigned' : coop.name}
+          </Typography>
+        </Box>
+      )}
+
       <CardContent sx={{ p: 2.5, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -369,6 +427,11 @@ export function CoopCard({ coop, canWrite, onCameraClick, onEdit, onDelete, onRe
             {coop.cameras.map((cam) => (
               <Box
                 key={cam.id}
+                draggable={canWrite}
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('text/plain', cam.id)
+                  e.dataTransfer.effectAllowed = 'move'
+                }}
                 onClick={() => onCameraClick(cam)}
                 sx={{
                   display: 'flex',
@@ -380,13 +443,17 @@ export function CoopCard({ coop, canWrite, onCameraClick, onEdit, onDelete, onRe
                   border: '1px solid',
                   borderColor: cam.status === 'online' ? '#d1fae5' : '#fecaca',
                   bgcolor: cam.status === 'online' ? '#f0fdf4' : '#fef2f2',
-                  cursor: 'pointer',
+                  cursor: canWrite ? 'grab' : 'pointer',
                   transition: 'all 0.15s ease',
+                  userSelect: 'none',
+                  '&:active': {
+                    cursor: canWrite ? 'grabbing' : 'pointer',
+                  },
                   '&:hover': {
                     borderColor: '#5e5ce6',
                     bgcolor: '#f5f3ff',
-                    transform: 'translateY(-1px)',
-                    boxShadow: '0 2px 8px rgba(94, 92, 230, 0.12)',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 12px rgba(94, 92, 230, 0.15)',
                   },
                 }}
               >
@@ -399,6 +466,7 @@ export function CoopCard({ coop, canWrite, onCameraClick, onEdit, onDelete, onRe
                   alignItems: 'center',
                   justifyContent: 'center',
                   overflow: 'hidden',
+                  position: 'relative',
                 }}>
                   {failedImages[cam.id] ? (
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
