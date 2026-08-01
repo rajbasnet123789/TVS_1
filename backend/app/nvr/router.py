@@ -214,7 +214,7 @@ async def get_snapshot(
                     return Response(content=resp.content, media_type="image/jpeg")
         except Exception as e:
             logger.warning(f"Failed to fetch snapshot: {e}")
-    raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="No snapshot available")
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No snapshot available")
 
 
 @router.get("/channels")
